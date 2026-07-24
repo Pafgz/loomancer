@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PROTOTYPE — Colorwork Chart Editor Variants</title>
+  <!-- Three throwaway chart-editor variants, switchable via ?variant=A|B|C. -->
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #20221f;
+      --muted: #686d66;
+      --paper: #f6f4ee;
+      --surface: #fffdf8;
+      --line: #cbc8bf;
+      --accent: #244b3c;
+      --accent-ink: #fff;
+      --focus: #0b67c2;
+      --sp-1: .25rem;
+      --sp-2: .5rem;
+      --sp-3: .75rem;
+      --sp-4: 1rem;
+      --sp-6: 1.5rem;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 20rem; color: var(--ink); background: var(--paper); font: 15px/1.45 ui-sans-serif, system-ui, sans-serif; }
+    button, input, select { font: inherit; }
+    button, input, select { border: 1px solid var(--line); border-radius: .25rem; background: var(--surface); color: var(--ink); }
+    button { min-height: 2.5rem; padding: var(--sp-2) var(--sp-3); cursor: pointer; }
+    button.primary { border-color: var(--accent); color: var(--accent-ink); background: var(--accent); }
+    :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+    h1, h2, p { margin-block-start: 0; }
+    h1 { margin-block-end: var(--sp-1); font-size: 1.25rem; }
+    h2 { margin-block-end: var(--sp-3); font-size: 1rem; }
+    .muted { color: var(--muted); }
+    .app-header { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); min-height: 4rem; padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--line); background: var(--surface); }
+    .actions, .field-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); }
+    .panel { min-width: 0; padding: var(--sp-4); border: 1px solid var(--line); background: var(--surface); }
+    .controls { display: grid; gap: var(--sp-4); }
+    .field { display: grid; gap: var(--sp-2); }
+    .field input[type="range"] { width: 100%; }
+    .field input[type="number"] { width: 5rem; padding: var(--sp-2); }
+    .chart-wrap { overflow: auto; display: grid; place-items: center; min-height: 24rem; padding: var(--sp-4); background: #e9e6dd; }
+    .chart { display: grid; grid-template-columns: repeat(16, 1.5rem); border-top: 1px solid #777; border-left: 1px solid #777; }
+    .cell { display: grid; width: 1.5rem; aspect-ratio: 1; place-items: center; border-right: 1px solid rgb(0 0 0 / .35); border-bottom: 1px solid rgb(0 0 0 / .35); color: #111; font: 700 .65rem/1 ui-monospace, monospace; }
+    .palette { display: grid; gap: var(--sp-2); }
+    .color { display: grid; grid-template-columns: 2rem 1fr auto; align-items: center; gap: var(--sp-2); padding-block: var(--sp-2); border-bottom: 1px solid var(--line); }
+    .swatch { width: 2rem; aspect-ratio: 1; border: 1px solid #555; border-radius: .2rem; }
+    .color strong, .color small { display: block; }
+    .variant { display: none; }
+    .variant.active { display: block; }
+    .layout-a { display: grid; grid-template-columns: minmax(13rem, 17rem) minmax(24rem, 1fr) minmax(14rem, 19rem); min-height: calc(100vh - 4rem); }
+    .layout-a > * + * { border-left: 0; }
+    .steps { display: flex; gap: var(--sp-2); margin: 0; padding: var(--sp-3) var(--sp-4); list-style: none; border-bottom: 1px solid var(--line); background: var(--surface); }
+    .steps li { flex: 1; padding: var(--sp-2); border-bottom: 3px solid var(--line); }
+    .steps li.current { border-color: var(--accent); font-weight: 700; }
+    .layout-b { display: grid; grid-template-columns: 1fr minmax(17rem, 24rem); gap: var(--sp-4); padding: var(--sp-4); }
+    .layout-b .chart-wrap { min-height: 32rem; }
+    .drawer { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr auto; gap: var(--sp-6); align-items: center; }
+    .drawer .palette { grid-template-columns: repeat(4, minmax(10rem, 1fr)); }
+    .layout-c { display: grid; grid-template-columns: minmax(17rem, 22rem) 1fr; min-height: calc(100vh - 4rem); }
+    .layout-c > * + * { border-left: 0; }
+    .inventory-list { display: grid; gap: var(--sp-2); margin-block-end: var(--sp-4); }
+    .inventory-item { display: grid; grid-template-columns: 2rem 1fr; gap: var(--sp-2); align-items: center; padding: var(--sp-2); border: 1px solid var(--line); }
+    .chart-stage { display: grid; grid-template-rows: auto 1fr auto; }
+    .compact-toolbar { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: end; padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--line); background: var(--surface); }
+    .switcher { position: fixed; z-index: 10; left: 50%; bottom: var(--sp-4); display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2); transform: translateX(-50%); border: 2px solid #fff; border-radius: 2rem; background: #171916; color: #fff; box-shadow: 0 .25rem 1rem rgb(0 0 0 / .25); }
+    .switcher button { border-color: #555; color: #fff; background: #2d302c; }
+    .switcher output { min-width: 14rem; text-align: center; }
+    @media (max-width: 64rem) {
+      .layout-a, .layout-b, .layout-c { grid-template-columns: 1fr; }
+      .layout-a > * + *, .layout-c > * + * { border-left: 1px solid var(--line); border-top: 0; }
+      .drawer { grid-template-columns: 1fr; }
+      .drawer .palette { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 38rem) {
+      .app-header { align-items: flex-start; flex-direction: column; }
+      .steps { overflow-x: auto; }
+      .steps li { min-width: 8rem; }
+      .drawer .palette { grid-template-columns: 1fr; }
+      .chart { grid-template-columns: repeat(16, 1.2rem); }
+      .cell { width: 1.2rem; }
+      .switcher output { min-width: 9rem; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div><h1>Mountain fox</h1><span class="muted">PROTOTYPE — unsaved Pattern Project</span></div>
+    <div class="actions"><button>Undo</button><button>Redo</button><button class="primary">Export pattern</button></div>
+  </header>
+
+  <main>
+    <section class="variant" data-variant="A" aria-labelledby="variant-a-title">
+      <div class="layout-a">
+        <aside class="panel controls">
+          <div><h2 id="variant-a-title">Studio controls</h2><p class="muted">Everything stays visible while the chart changes.</p></div>
+          <label class="field">Source image <button>Select from photo library</button></label>
+          <label class="field">Detail <input type="range" min="1" max="10" value="6"><small>48 × 36 stitches</small></label>
+          <div class="field"><span>Exact grid</span><div class="field-row"><input aria-label="Stitch width" type="number" value="48"> × <input aria-label="Row height" type="number" value="36"></div></div>
+          <label class="field">Maximum colors <input type="range" min="2" max="12" value="6"><small>6 colors</small></label>
+          <button>Crop and rotate</button>
+        </aside>
+        <section class="chart-wrap" aria-label="Editable colorwork chart"><div class="chart"></div></section>
+        <aside class="panel"><h2>Color key</h2><div class="palette"></div><button>Add replacement color</button></aside>
+      </div>
+    </section>
+
+    <section class="variant" data-variant="B" aria-labelledby="variant-b-title">
+      <ol class="steps" aria-label="Pattern creation steps"><li>1. Image</li><li>2. Pixelize</li><li class="current">3. Adjust colors</li><li>4. Export</li></ol>
+      <div class="layout-b">
+        <section class="chart-wrap" aria-label="Editable colorwork chart"><div class="chart"></div></section>
+        <aside class="panel controls">
+          <div><h2 id="variant-b-title">Guided color adjustment</h2><p class="muted">Finish this step, then export.</p></div>
+          <label class="field">Detail <input type="range" min="1" max="10" value="6"><small>48 × 36 stitches</small></label>
+          <label class="field">Maximum colors <input type="range" min="2" max="12" value="6"><small>6 colors</small></label>
+          <button class="primary">Colors look good</button>
+        </aside>
+        <section class="panel drawer"><div><h2>Color key</h2><span class="muted">Closest owned yarn suggested</span></div><div class="palette"></div><button>Manage yarn</button></section>
+      </div>
+    </section>
+
+    <section class="variant" data-variant="C" aria-labelledby="variant-c-title">
+      <div class="layout-c">
+        <aside class="panel">
+          <h2 id="variant-c-title">Yarn-first workspace</h2>
+          <p class="muted">Drag an owned Yarn Color onto a chart color to replace it.</p>
+          <div class="inventory-list">
+            <div class="inventory-item"><span class="swatch" style="background:#263e36"></span><span>Forest green<small class="muted">3 balls owned</small></span></div>
+            <div class="inventory-item"><span class="swatch" style="background:#d8ad63"></span><span>Golden oat<small class="muted">Quantity unknown</small></span></div>
+            <div class="inventory-item"><span class="swatch" style="background:#ede5cf"></span><span>Natural cream<small class="muted">2 balls owned</small></span></div>
+          </div>
+          <button>Add Yarn Color</button>
+          <h2 style="margin-top:1.5rem">Chart colors</h2>
+          <div class="palette"></div>
+        </aside>
+        <section class="chart-stage">
+          <div class="compact-toolbar">
+            <label class="field">Detail <input type="range" min="1" max="10" value="6"></label>
+            <label class="field">Width <input type="number" value="48"></label>
+            <label class="field">Height <input type="number" value="36"></label>
+            <label class="field">Colors <input type="number" value="6" min="2" max="12"></label>
+            <button>Change image</button>
+          </div>
+          <div class="chart-wrap" aria-label="Editable colorwork chart"><div class="chart"></div></div>
+          <div class="panel"><strong>48 × 36 stitches</strong> · 6 colors · <span class="muted">All color matches reviewed</span></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <nav class="switcher" aria-label="Prototype variants">
+    <button id="previous" aria-label="Previous variant">←</button>
+    <output id="variant-label" aria-live="polite"></output>
+    <button id="next" aria-label="Next variant">→</button>
+  </nav>
+
+  <script>
+    const colors = [
+      ['#263e36', '▲', 'Pine shadow', 'Forest green suggested'],
+      ['#d8ad63', '●', 'Ochre', 'Golden oat suggested'],
+      ['#ede5cf', '□', 'Cream', 'Natural cream suggested'],
+      ['#a75d46', '◆', 'Fox red', 'No close owned yarn'],
+      ['#7592a0', '×', 'Sky blue', 'No close owned yarn'],
+      ['#3d302d', '+', 'Dark brown', 'No close owned yarn']
+    ];
+    const variants = { A: 'Studio', B: 'Guided steps', C: 'Yarn first' };
+    const keys = Object.keys(variants);
+    const cells = Array.from({ length: 16 * 14 }, (_, i) => {
+      const x = i % 16, y = Math.floor(i / 16);
+      const index = ((x - 8) ** 2 + (y - 7) ** 2 < 21) ? (x + y) % 3 + 3 : (x * 2 + y) % 3;
+      return colors[index];
+    });
+    document.querySelectorAll('.chart').forEach(chart => {
+      cells.forEach(([color, symbol]) => {
+        const cell = document.createElement('span');
+        cell.className = 'cell';
+        cell.style.background = color;
+        cell.textContent = symbol;
+        cell.setAttribute('aria-label', `Stitch ${symbol}`);
+        chart.append(cell);
+      });
+    });
+    document.querySelectorAll('.palette').forEach(palette => {
+      colors.forEach(([color, symbol, name, match]) => {
+        const row = document.createElement('div');
+        row.className = 'color';
+        row.innerHTML = `<span class="swatch" style="background:${color}"></span><span><strong>${symbol} ${name}</strong><small class="muted">${match}</small></span><button aria-label="Replace ${name}">Replace</button>`;
+        palette.append(row);
+      });
+    });
+    function selectVariant(key) {
+      const chosen = variants[key] ? key : 'A';
+      document.querySelectorAll('.variant').forEach(node => node.classList.toggle('active', node.dataset.variant === chosen));
+      document.querySelector('#variant-label').textContent = `${chosen} — ${variants[chosen]}`;
+      const url = new URL(location.href);
+      url.searchParams.set('variant', chosen);
+      history.replaceState(null, '', url);
+    }
+    function cycle(direction) {
+      const current = new URL(location.href).searchParams.get('variant') || 'A';
+      const next = keys[(keys.indexOf(current) + direction + keys.length) % keys.length];
+      selectVariant(next);
+    }
+    document.querySelector('#previous').addEventListener('click', () => cycle(-1));
+    document.querySelector('#next').addEventListener('click', () => cycle(1));
+    addEventListener('keydown', event => {
+      if (event.target.matches('input, textarea, select, [contenteditable]')) return;
+      if (event.key === 'ArrowLeft') cycle(-1);
+      if (event.key === 'ArrowRight') cycle(1);
+    });
+    selectVariant(new URL(location.href).searchParams.get('variant') || 'A');
+  </script>
+</body>
+</html>
