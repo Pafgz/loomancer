@@ -44,4 +44,37 @@ describe("local repository", () => {
     expect(listed).toEqual([yarn]);
     expect(listed[0]?.schemaVersion).toBe(YARN_INVENTORY_SCHEMA_VERSION);
   });
+
+  it("persists a source image Blob with crop and rotation for reopen", async () => {
+    const repository = await createLocalRepository(
+      `knit-pro-${crypto.randomUUID()}`,
+    );
+    const sourceImage = new Blob([Uint8Array.from([1, 2, 3, 4])], {
+      type: "image/png",
+    });
+    const project = {
+      ...createEmptyPatternProject("Mountain fox"),
+      sourceImage,
+      sourceFileName: "fox.png",
+      sourceMimeType: "image/png",
+      naturalWidth: 1200,
+      naturalHeight: 800,
+      rotationDegrees: 90 as const,
+      crop: { x: 10, y: 20, width: 400, height: 300 },
+    };
+
+    await repository.savePatternProject(project);
+    const reloaded = await repository.getPatternProject(project.id);
+
+    expect(reloaded?.sourceFileName).toBe("fox.png");
+    expect(reloaded?.sourceMimeType).toBe("image/png");
+    expect(reloaded?.naturalWidth).toBe(1200);
+    expect(reloaded?.naturalHeight).toBe(800);
+    expect(reloaded?.rotationDegrees).toBe(90);
+    expect(reloaded?.crop).toEqual({ x: 10, y: 20, width: 400, height: 300 });
+    expect(reloaded?.sourceImage).toBeInstanceOf(Blob);
+    expect(await reloaded?.sourceImage?.arrayBuffer()).toEqual(
+      await sourceImage.arrayBuffer(),
+    );
+  });
 });

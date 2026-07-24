@@ -142,6 +142,58 @@ button.ghost {
   background: #e9e6dd;
 }
 
+.file-picker {
+  display: grid;
+  gap: var(--sp-2);
+  margin-block: var(--sp-4);
+  font-weight: 600;
+}
+
+.file-picker input[type="file"] {
+  width: 100%;
+}
+
+.form-error {
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-3);
+  border: 1px solid #a75d46;
+  background: #f8e8e2;
+  color: #5c2414;
+}
+
+.image-editor {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.image-editor img {
+  justify-self: center;
+  border: 1px solid var(--line);
+  background: #ddd8cc;
+}
+
+.crop-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+
+.crop-fields label {
+  display: grid;
+  gap: var(--sp-2);
+  font-size: 0.95rem;
+}
+
+.crop-fields input {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+  background: var(--surface);
+  font: inherit;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

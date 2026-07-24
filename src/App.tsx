@@ -32,12 +32,21 @@ export function App({ repository }: AppProps) {
     };
   }, [repository]);
 
+  async function refreshProjects() {
+    setProjects(await repository.listPatternProjects());
+  }
+
   async function handleCreateProject() {
     const project = createEmptyPatternProject("Untitled pattern");
     await repository.savePatternProject(project);
-    const listed = await repository.listPatternProjects();
-    setProjects(listed);
+    await refreshProjects();
     setActiveProject(project);
+  }
+
+  async function handleProjectChange(project: PatternProject) {
+    await repository.savePatternProject(project);
+    setActiveProject(project);
+    await refreshProjects();
   }
 
   if (activeProject) {
@@ -45,6 +54,7 @@ export function App({ repository }: AppProps) {
       <Studio
         project={activeProject}
         onBack={() => setActiveProject(null)}
+        onProjectChange={handleProjectChange}
       />
     );
   }

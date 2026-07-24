@@ -2,12 +2,16 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { PatternProject, YarnColor } from "../domain/models";
 
 export const DEFAULT_DATABASE_NAME = "knit-pro";
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
+
+type StoredPatternProject = Omit<PatternProject, "sourceImage"> & {
+  sourceImageBytes?: ArrayBuffer;
+};
 
 type KnitProDb = DBSchema & {
   projects: {
     key: string;
-    value: PatternProject;
+    value: StoredPatternProject;
     indexes: { "by-updated": string };
   };
   inventory: {
@@ -46,6 +50,34 @@ async function openKnitProDb(
   });
 }
 
+async function toStored(
+  project: PatternProject,
+): Promise<StoredPatternProject> {
+  const { sourceImage, ...rest } = project;
+  if (!sourceImage) {
+    return rest;
+  }
+
+  return {
+    ...rest,
+    sourceImageBytes: await sourceImage.arrayBuffer(),
+  };
+}
+
+function fromStored(stored: StoredPatternProject): PatternProject {
+  const { sourceImageBytes, ...rest } = stored;
+  if (!sourceImageBytes) {
+    return rest;
+  }
+
+  return {
+    ...rest,
+    sourceImage: new Blob([sourceImageBytes], {
+      type: rest.sourceMimeType ?? "application/octet-stream",
+    }),
+  };
+}
+
 export async function createLocalRepository(
   databaseName: string = DEFAULT_DATABASE_NAME,
 ): Promise<LocalRepository> {
@@ -53,13 +85,15 @@ export async function createLocalRepository(
 
   return {
     async savePatternProject(project) {
-      await database.put("projects", project);
+      await database.put("projects", await toStored(project));
     },
     async getPatternProject(id) {
-      return database.get("projects", id);
+      const stored = await database.get("projects", id);
+      return stored ? fromStored(stored) : undefined;
     },
     async listPatternProjects() {
-      return database.getAllFromIndex("projects", "by-updated");
+      const stored = await database.getAllFromIndex("projects", "by-updated");
+      return stored.map(fromStored);
     },
     async saveYarnColor(yarn) {
       await database.put("inventory", yarn);
