@@ -32,7 +32,7 @@ function Bootstrap() {
       .catch(() => {
         if (!cancelled) {
           setError(
-            "Local storage is unavailable in this browser session. You can still open Knit-Pro, but Pattern Projects cannot be saved until storage works.",
+            "Local storage is unavailable in this browser session. You can still open Loomancer, but Pattern Projects cannot be saved until storage works.",
           );
         }
       });
@@ -46,14 +46,21 @@ function Bootstrap() {
     return (
       <div className="home">
         <header className="home-header">
-          <div>
-            <p className="brand">Knit-Pro</p>
-            <h1>Pattern Projects</h1>
+          <div className="brand-mark">
+            <span className="logo" aria-hidden="true">
+              L
+            </span>
+            <div className="header-titles">
+              <p className="brand">Loomancer</p>
+              <h1>Pattern Projects</h1>
+            </div>
           </div>
         </header>
-        <p className="storage-warning" role="alert">
-          {error}
-        </p>
+        <main className="home-main">
+          <p className="storage-warning" role="alert">
+            {error}
+          </p>
+        </main>
       </div>
     );
   }
@@ -62,14 +69,21 @@ function Bootstrap() {
     return (
       <div className="home">
         <header className="home-header">
-          <div>
-            <p className="brand">Knit-Pro</p>
-            <h1>Pattern Projects</h1>
+          <div className="brand-mark">
+            <span className="logo" aria-hidden="true">
+              L
+            </span>
+            <div className="header-titles">
+              <p className="brand">Loomancer</p>
+              <h1>Pattern Projects</h1>
+            </div>
           </div>
         </header>
-        <p className="storage-warning" role="status">
-          Opening local storage…
-        </p>
+        <main className="home-main">
+          <p className="storage-warning" role="status">
+            Opening local storage…
+          </p>
+        </main>
       </div>
     );
   }

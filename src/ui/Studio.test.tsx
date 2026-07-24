@@ -156,6 +156,40 @@ describe("Studio image controls", () => {
     vi.useRealTimers();
   });
 
+  it("enables export and reveals PDF/PNG download actions once a chart exists", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const project = createEmptyPatternProject("Mountain fox");
+
+    render(
+      <Studio
+        {...studioProps}
+        project={project}
+        onProjectChange={async () => undefined}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /^export$/i })).toBeDisabled();
+
+    await user.upload(
+      screen.getByLabelText(/select photo/i),
+      new File([tinyPng], "fox.png", { type: "image/png" }),
+    );
+    await vi.advanceTimersByTimeAsync(350);
+    await screen.findByRole("table", { name: /colorwork chart/i });
+
+    const exportButton = screen.getByRole("button", { name: /^export$/i });
+    expect(exportButton).toBeEnabled();
+    await user.click(exportButton);
+
+    expect(screen.getByRole("heading", { name: /^pdf$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^png$/i })).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: /download/i }),
+    ).toHaveLength(2);
+    vi.useRealTimers();
+  });
+
   it("replaces a chart color from Yarn Inventory and supports undo", async () => {
     const user = userEvent.setup();
     const project = createEmptyPatternProject("Mountain fox");

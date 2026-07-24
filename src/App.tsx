@@ -1,12 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { createWorkerChartGenerator } from "./chart/chart-generator";
 import {
   createEmptyPatternProject,
+  duplicatePatternProject,
   type PatternProject,
   type YarnColor,
 } from "./domain/models";
 import type { LocalRepository } from "./repository/local-repository";
+import {
+  describeStorageError,
+  ensurePersistentStorage,
+} from "./repository/storage-errors";
 import { Studio } from "./ui/Studio";
+import { ThemeToggle } from "./ui/ThemeToggle";
 
 type AppProps = {
   repository: LocalRepository;
@@ -21,6 +27,9 @@ export function App({ repository }: AppProps) {
     null,
   );
   const [loading, setLoading] = useState(true);
+  const [storageError, setStorageError] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -47,22 +56,90 @@ export function App({ repository }: AppProps) {
 
   async function handleCreateProject() {
     const project = createEmptyPatternProject("Untitled pattern");
-    await repository.savePatternProject(project);
-    await refreshProjects();
+    try {
+      await repository.savePatternProject(project);
+      setStorageError(null);
+      void ensurePersistentStorage();
+      await refreshProjects();
+    } catch (error) {
+      setStorageError(describeStorageError(error));
+    }
     setActiveProject(project);
   }
 
   async function handleProjectChange(project: PatternProject) {
-    await repository.savePatternProject(project);
+    // Keep the in-memory project current first, so a failed save never drops
+    // the knitter's work or the chart they are looking at.
     setActiveProject(project);
-    await refreshProjects();
+    try {
+      await repository.savePatternProject(project);
+      setStorageError(null);
+      void ensurePersistentStorage();
+      await refreshProjects();
+    } catch (error) {
+      setStorageError(describeStorageError(error));
+    }
   }
 
   async function handleInventoryChange(next: YarnColor[]) {
-    for (const yarn of next) {
-      await repository.saveYarnColor(yarn);
+    try {
+      for (const yarn of next) {
+        await repository.saveYarnColor(yarn);
+      }
+      setStorageError(null);
+      setInventory(await repository.listYarnColors());
+    } catch (error) {
+      setStorageError(describeStorageError(error));
+      setInventory(next);
     }
-    setInventory(await repository.listYarnColors());
+  }
+
+  async function handleRename(project: PatternProject, nextName: string) {
+    const name = nextName.trim();
+    setRenamingId(null);
+    if (!name || name === project.name) {
+      return;
+    }
+    const renamed = {
+      ...project,
+      name,
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      await repository.savePatternProject(renamed);
+      setStorageError(null);
+      await refreshProjects();
+    } catch (error) {
+      setStorageError(describeStorageError(error));
+    }
+  }
+
+  async function handleDuplicate(project: PatternProject) {
+    const source = (await repository.getPatternProject(project.id)) ?? project;
+    const copy = duplicatePatternProject(source);
+    try {
+      await repository.savePatternProject(copy);
+      setStorageError(null);
+      await refreshProjects();
+    } catch (error) {
+      setStorageError(describeStorageError(error));
+    }
+  }
+
+  async function handleDelete(project: PatternProject) {
+    const confirmed = window.confirm(
+      `Delete "${project.name}"? This can't be undone.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+    try {
+      await repository.deletePatternProject(project.id);
+      setStorageError(null);
+      await refreshProjects();
+    } catch (error) {
+      setStorageError(describeStorageError(error));
+    }
   }
 
   if (activeProject) {
@@ -81,40 +158,127 @@ export function App({ repository }: AppProps) {
   return (
     <div className="home">
       <header className="home-header">
-        <div>
-          <p className="brand">Knit-Pro</p>
-          <h1>Pattern Projects</h1>
+        <div className="brand-mark">
+          <span className="logo" aria-hidden="true">
+            L
+          </span>
+          <div className="header-titles">
+            <p className="brand">Loomancer</p>
+            <h1>Pattern Projects</h1>
+          </div>
         </div>
-        <button type="button" className="primary" onClick={handleCreateProject}>
-          New Pattern Project
-        </button>
+        <div className="actions">
+          <ThemeToggle />
+          <button
+            type="button"
+            className="primary"
+            onClick={handleCreateProject}
+          >
+            New Pattern Project
+          </button>
+        </div>
       </header>
 
-      <p className="storage-warning" role="note">
-        Stored only on this device/browser; not synchronized or backed up.
-      </p>
+      <main className="home-main">
+        <p className="storage-warning" role="note">
+          <span aria-hidden="true">⛭</span>
+          Stored only on this device/browser; not synchronized or backed up.
+        </p>
 
-      <section className="project-list" aria-label="Local Pattern Projects">
-        {loading ? (
-          <p>Loading local projects…</p>
-        ) : projects.length === 0 ? (
-          <p>No Pattern Projects yet.</p>
-        ) : (
-          <ul>
-            {projects.map((project) => (
-              <li key={project.id}>
-                <button
-                  type="button"
-                  className="project-link"
-                  onClick={() => setActiveProject(project)}
-                >
-                  {project.name}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        {storageError ? (
+          <p className="form-error" role="alert">
+            <span aria-hidden="true">⚠</span>
+            {storageError}
+          </p>
+        ) : null}
+
+        <section className="project-list" aria-label="Local Pattern Projects">
+          {loading ? (
+            <p className="muted">Loading local projects…</p>
+          ) : projects.length === 0 ? (
+            <div className="empty-state">
+              <strong>No Pattern Projects yet.</strong>
+              <span className="muted">
+                Create one to turn a photo into a Colorwork Chart.
+              </span>
+            </div>
+          ) : (
+            <ul>
+              {projects.map((project) => (
+                <li key={project.id} className="project-card">
+                  {renamingId === project.id ? (
+                    <form
+                      className="rename-form"
+                      onSubmit={(event: FormEvent) => {
+                        event.preventDefault();
+                        void handleRename(project, renameValue);
+                      }}
+                    >
+                      <input
+                        autoFocus
+                        value={renameValue}
+                        aria-label={`New name for ${project.name}`}
+                        onChange={(event) => setRenameValue(event.target.value)}
+                      />
+                      <div className="actions">
+                        <button type="submit" className="primary">
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => setRenamingId(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="project-link"
+                        onClick={() => setActiveProject(project)}
+                      >
+                        {project.name}
+                      </button>
+                      <div className="project-card-actions">
+                        <button
+                          type="button"
+                          className="ghost"
+                          aria-label={`Rename ${project.name}`}
+                          onClick={() => {
+                            setRenamingId(project.id);
+                            setRenameValue(project.name);
+                          }}
+                        >
+                          Rename
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost"
+                          aria-label={`Duplicate ${project.name}`}
+                          onClick={() => void handleDuplicate(project)}
+                        >
+                          Duplicate
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost"
+                          aria-label={`Delete ${project.name}`}
+                          onClick={() => void handleDelete(project)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </main>
     </div>
   );
 }

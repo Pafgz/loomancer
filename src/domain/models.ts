@@ -79,6 +79,33 @@ export function createEmptyPatternProject(name: string): PatternProject {
   };
 }
 
+/**
+ * Clone a Pattern Project into an independent copy with a new id, fresh
+ * timestamps, and a deep-copied chart/crop so edits to the copy never touch the
+ * original. The source image Blob is immutable, so it is shared by reference.
+ */
+export function duplicatePatternProject(
+  project: PatternProject,
+  name?: string,
+): PatternProject {
+  const now = new Date().toISOString();
+  return {
+    ...project,
+    id: crypto.randomUUID(),
+    name: name ?? `${project.name} (copy)`,
+    createdAt: now,
+    updatedAt: now,
+    crop: project.crop ? { ...project.crop } : null,
+    chart: project.chart
+      ? {
+          ...project.chart,
+          cells: [...project.chart.cells],
+          palette: project.chart.palette.map((entry) => ({ ...entry })),
+        }
+      : null,
+  };
+}
+
 export function createYarnColor(
   name: string,
   displayColor: string,

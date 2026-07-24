@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en" data-variant="slate" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Knit-Pro — UI refresh prototype</title>
+    <style>
+      /* ---------- Throwaway prototype. Delete after design is chosen. ---------- */
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+
+      /* ============================================================
+         SHARED contemporary tokens (per variant + theme overrides)
+         ============================================================ */
+      :root {
+        --radius-sm: 6px;
+        --radius: 10px;
+        --radius-lg: 16px;
+        --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+        --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+        --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08);
+        --shadow-2: 0 4px 12px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.06);
+        --ring: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent);
+      }
+
+      /* ---------- Variant: SLATE (neutral, indigo accent) ---------- */
+      [data-variant="slate"][data-theme="light"] {
+        --bg: #f1f3f7; --surface: #ffffff; --surface-2: #f7f8fb; --canvas: #e9ecf3;
+        --ink: #1a1d23; --muted: #656b78; --line: #e2e5ec; --line-strong: #cbd0da;
+        --accent: #4f46e5; --accent-ink: #ffffff; --accent-soft: #eef0fe;
+      }
+      [data-variant="slate"][data-theme="dark"] {
+        --bg: #0d1017; --surface: #161a22; --surface-2: #1c212b; --canvas: #10141c;
+        --ink: #e7eaf0; --muted: #98a0b0; --line: #262c38; --line-strong: #333b4a;
+        --accent: #7c7bff; --accent-ink: #0d1017; --accent-soft: #1e2033;
+      }
+
+      /* ---------- Variant: CRAFT (warm neutral, terracotta+green) ---------- */
+      [data-variant="craft"][data-theme="light"] {
+        --bg: #f4f1ea; --surface: #fffdf9; --surface-2: #f8f5ee; --canvas: #ebe6db;
+        --ink: #262320; --muted: #6f6a60; --line: #e7e1d5; --line-strong: #d3ccbc;
+        --accent: #b1573a; --accent-ink: #ffffff; --accent-soft: #f6e9e2;
+      }
+      [data-variant="craft"][data-theme="dark"] {
+        --bg: #14120f; --surface: #1e1b17; --surface-2: #262219; --canvas: #17140f;
+        --ink: #ece7dd; --muted: #a49c8c; --line: #2c2820; --line-strong: #3b3527;
+        --accent: #e08a63; --accent-ink: #14120f; --accent-soft: #2a221a;
+      }
+
+      /* ---------- Variant: MONO (high-contrast, dense, mono numerics) ---------- */
+      [data-variant="mono"][data-theme="light"] {
+        --bg: #eeeeef; --surface: #ffffff; --surface-2: #f5f5f6; --canvas: #e4e4e7;
+        --ink: #0a0a0b; --muted: #6b6b70; --line: #e2e2e5; --line-strong: #c6c6cb;
+        --accent: #0a0a0b; --accent-ink: #ffffff; --accent-soft: #ededf0;
+      }
+      [data-variant="mono"][data-theme="dark"] {
+        --bg: #050506; --surface: #101012; --surface-2: #16161a; --canvas: #0a0a0c;
+        --ink: #f4f4f5; --muted: #9a9aa2; --line: #202024; --line-strong: #303036;
+        --accent: #fafafa; --accent-ink: #050506; --accent-soft: #1a1a1e;
+      }
+      [data-variant="mono"] { --radius: 6px; --radius-lg: 8px; --sp-5: 18px; --sp-6: 24px; }
+
+      body {
+        font-family: var(--font-sans);
+        background: var(--bg);
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+
+      /* ============================ Prototype control bar ============================ */
+      .proto-bar {
+        display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap;
+        padding: var(--sp-2) var(--sp-4);
+        background: var(--surface); border-bottom: 1px solid var(--line);
+        font-size: 13px;
+      }
+      .proto-bar strong { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+      .seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+      .seg button {
+        border: 0; background: transparent; color: var(--muted); font: inherit;
+        padding: 5px 12px; border-radius: 999px; cursor: pointer;
+      }
+      .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+
+      /* ================================= App shell ================================= */
+      .app { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+      .topbar {
+        display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4);
+        padding: var(--sp-3) var(--sp-5);
+        background: var(--surface); border-bottom: 1px solid var(--line);
+      }
+      .brand { display: flex; align-items: center; gap: var(--sp-3); }
+      .logo {
+        width: 30px; height: 30px; border-radius: 8px;
+        background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #fff));
+        display: grid; place-items: center; color: var(--accent-ink); font-weight: 800; font-size: 15px;
+      }
+      .brand h1 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
+      .brand .sub { font-size: 12px; color: var(--muted); }
+      [data-variant="mono"] .brand h1 { font-family: var(--font-mono); }
+
+      .toolbar-actions { display: flex; align-items: center; gap: var(--sp-2); }
+
+      .btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        min-height: 34px; padding: 0 14px;
+        border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+        background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; font-weight: 500;
+        cursor: pointer; transition: background .12s, border-color .12s, transform .04s;
+      }
+      .btn:hover { background: var(--surface-2); }
+      .btn:active { transform: translateY(1px); }
+      .btn:disabled { opacity: .45; cursor: not-allowed; }
+      .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+      .btn.primary:hover { filter: brightness(1.05); background: var(--accent); }
+      .btn.icon { padding: 0; width: 34px; justify-content: center; }
+      .btn:focus-visible { outline: none; box-shadow: var(--ring); }
+
+      /* ================================= Layout ================================= */
+      .layout {
+        flex: 1; display: grid; min-height: 0;
+        grid-template-columns: 320px 1fr 340px;
+        gap: 1px; background: var(--line);
+      }
+      .col { background: var(--bg); overflow: auto; padding: var(--sp-5); min-width: 0; }
+      .col-canvas { background: var(--canvas); display: grid; place-items: center; padding: var(--sp-6); }
+
+      .col h2 {
+        margin: 0 0 var(--sp-4); font-size: 12px; letter-spacing: .06em; text-transform: uppercase;
+        color: var(--muted); font-weight: 600;
+      }
+
+      .card {
+        background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+        box-shadow: var(--shadow-1); padding: var(--sp-4); margin-bottom: var(--sp-4);
+      }
+      .card h3 { margin: 0 0 var(--sp-3); font-size: 13px; font-weight: 600; }
+
+      .field { display: grid; gap: 6px; margin-bottom: var(--sp-4); }
+      .field:last-child { margin-bottom: 0; }
+      .field label { font-size: 12px; font-weight: 600; color: var(--muted); }
+      .field .hint { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+      [data-variant="mono"] .field .hint { font-family: var(--font-mono); }
+
+      input[type="number"], input[type="text"], select {
+        width: 100%; min-height: 34px; padding: 6px 10px;
+        border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+        background: var(--surface); color: var(--ink); font: inherit; font-size: 13px;
+      }
+      input:focus-visible { outline: none; box-shadow: var(--ring); border-color: var(--accent); }
+
+      input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+      .dropzone {
+        border: 1.5px dashed var(--line-strong); border-radius: var(--radius);
+        background: var(--surface-2); padding: var(--sp-5); text-align: center;
+        color: var(--muted); font-size: 13px; cursor: pointer; transition: border-color .12s, background .12s;
+      }
+      .dropzone:hover { border-color: var(--accent); background: var(--accent-soft); }
+      .dropzone strong { display: block; color: var(--ink); font-size: 14px; margin-bottom: 4px; }
+
+      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+
+      .switch-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+      .switch { position: relative; width: 40px; height: 22px; }
+      .switch input { position: absolute; opacity: 0; }
+      .switch .track { position: absolute; inset: 0; background: var(--line-strong); border-radius: 999px; transition: background .12s; }
+      .switch .thumb { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: left .12s; box-shadow: var(--shadow-1); }
+      .switch input:checked + .track { background: var(--accent); }
+      .switch input:checked + .track + .thumb { left: 20px; }
+
+      .thumb-preview {
+        margin-top: var(--sp-3); border-radius: var(--radius); overflow: hidden;
+        border: 1px solid var(--line); aspect-ratio: 4/3;
+        background: repeating-conic-gradient(#0002 0% 25%, transparent 0% 50%) 50% / 16px 16px;
+      }
+      .thumb-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+      /* ================================= Chart canvas ================================= */
+      .chart-wrap { display: grid; gap: var(--sp-4); max-width: 100%; }
+      .chart-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+      .chart-meta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+      [data-variant="mono"] .chart-meta { font-family: var(--font-mono); }
+      .chart-frame {
+        background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-2); padding: var(--sp-4); overflow: auto; max-height: 62vh;
+      }
+      .chart-grid { display: grid; width: max-content; }
+      .cell { width: 20px; height: 20px; display: grid; place-items: center; font: 700 9px/1 var(--font-mono); color: #0009; outline: 0.5px solid #0000000f; }
+
+      /* ================================= Color key ================================= */
+      .swatch-list { display: grid; gap: 6px; }
+      .swatch-row {
+        display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: var(--sp-3);
+        padding: 8px; border: 1px solid transparent; border-radius: var(--radius-sm); cursor: pointer;
+        width: 100%; background: transparent; color: inherit; font: inherit; text-align: left;
+      }
+      .swatch-row:hover { background: var(--surface-2); }
+      .swatch-row.selected { border-color: var(--accent); background: var(--accent-soft); }
+      .swatch { width: 26px; height: 26px; border-radius: 6px; border: 1px solid #0002; }
+      .swatch-row .name { font-size: 13px; font-weight: 500; }
+      .swatch-row .count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+      .sym { font: 700 11px/1 var(--font-mono); color: var(--muted); }
+
+      .yarn-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+      .yarn-dot { width: 12px; height: 12px; border-radius: 3px; border: 1px solid #0002; }
+
+      .alert {
+        display: flex; gap: 8px; padding: 10px 12px; border-radius: var(--radius-sm);
+        background: color-mix(in srgb, #d97706 16%, var(--surface)); border: 1px solid color-mix(in srgb, #d97706 40%, var(--line));
+        font-size: 12px; margin-top: var(--sp-3);
+      }
+
+      @media (max-width: 1024px) {
+        .layout { grid-template-columns: 1fr; }
+        .col-canvas { order: -1; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="proto-bar">
+      <strong>Prototype</strong>
+      <span>Variant:</span>
+      <div class="seg" id="variant">
+        <button data-v="slate" aria-pressed="true">Slate</button>
+        <button data-v="craft" aria-pressed="false">Craft</button>
+        <button data-v="mono" aria-pressed="false">Mono</button>
+      </div>
+      <span>Theme:</span>
+      <div class="seg" id="theme">
+        <button data-t="light" aria-pressed="true">Light</button>
+        <button data-t="dark" aria-pressed="false">Dark</button>
+      </div>
+      <span class="chart-meta">Throwaway — pick a direction, then I fold the winner into the real app.</span>
+    </div>
+
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="logo">K</div>
+          <div>
+            <h1>Autumn Leaves Cowl</h1>
+            <div class="sub">Local pattern project · saved just now</div>
+          </div>
+        </div>
+        <div class="toolbar-actions">
+          <button class="btn icon" title="Undo">↶</button>
+          <button class="btn icon" title="Redo">↷</button>
+          <button class="btn">Export PNG</button>
+          <button class="btn primary">Save pattern</button>
+        </div>
+      </header>
+
+      <div class="layout">
+        <!-- LEFT: image controls -->
+        <section class="col">
+          <h2>Image</h2>
+          <div class="card">
+            <div class="dropzone">
+              <strong>Drop a photo or browse</strong>
+              JPEG, PNG or WebP · stays on your device
+            </div>
+            <div class="thumb-preview">
+              <img alt="source" src="https://images.unsplash.com/photo-1528459801416-a9e53bbf4e17?w=400&q=60" />
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Framing</h3>
+            <div class="grid-2">
+              <div class="field"><label>Crop X</label><input type="number" value="0" /></div>
+              <div class="field"><label>Crop Y</label><input type="number" value="0" /></div>
+              <div class="field"><label>Width</label><input type="number" value="1200" /></div>
+              <div class="field"><label>Height</label><input type="number" value="900" /></div>
+            </div>
+            <button class="btn" style="width:100%">Rotate 90°</button>
+          </div>
+
+          <div class="card">
+            <h3>Chart</h3>
+            <div class="field">
+              <label>Detail</label>
+              <input type="range" min="1" max="10" value="6" />
+              <span class="hint">40 × 30 stitches</span>
+            </div>
+            <div class="grid-2">
+              <div class="field"><label>Stitch width</label><input type="number" value="40" /></div>
+              <div class="field"><label>Row height</label><input type="number" value="30" /></div>
+            </div>
+            <div class="switch-row" style="margin-bottom:var(--sp-4)">
+              <label style="font-size:12px;font-weight:600;color:var(--muted)">Lock aspect ratio</label>
+              <label class="switch"><input type="checkbox" checked /><span class="track"></span><span class="thumb"></span></label>
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label>Maximum colors</label>
+              <input type="range" min="2" max="16" value="6" />
+              <span class="hint">6 colors</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- CENTER: chart canvas -->
+        <section class="col col-canvas">
+          <div class="chart-wrap">
+            <div class="chart-toolbar">
+              <div class="chart-meta">40 × 30 stitches · 6 colors</div>
+              <div class="toolbar-actions">
+                <button class="btn icon" title="Zoom out">−</button>
+                <button class="btn icon" title="Zoom in">+</button>
+              </div>
+            </div>
+            <div class="chart-frame">
+              <div class="chart-grid" id="grid"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- RIGHT: color key -->
+        <section class="col">
+          <h2>Color key</h2>
+          <div class="card">
+            <h3>Palette</h3>
+            <div class="swatch-list" id="palette"></div>
+          </div>
+
+          <div class="card">
+            <h3>Selected · replace</h3>
+            <div class="field">
+              <label>From your yarn inventory</label>
+              <select>
+                <option>Wool of the Andes · Fog</option>
+                <option>Cascade 220 · Ruby</option>
+                <option>Malabrigo · Pearl</option>
+              </select>
+            </div>
+            <div class="grid-2">
+              <button class="btn" style="width:100%">Merge</button>
+              <button class="btn primary" style="width:100%">Apply</button>
+            </div>
+            <div class="alert">⚠ Colors 3 and 5 are hard to tell apart when knit.</div>
+          </div>
+
+          <div class="card" style="margin-bottom:0">
+            <h3>Yarn inventory</h3>
+            <div class="swatch-list">
+              <div class="yarn-chip"><span class="yarn-dot" style="background:#8896a6"></span> Fog · 2 skeins</div>
+              <div class="yarn-chip"><span class="yarn-dot" style="background:#9c2b2b"></span> Ruby · 1 skein</div>
+              <div class="yarn-chip"><span class="yarn-dot" style="background:#e8e2d6"></span> Pearl · 3 skeins</div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      const PALETTE = [
+        { hex: "#3b4a63", sym: "A", name: "Deep Indigo", count: 402 },
+        { hex: "#c46a3f", sym: "B", name: "Rust", count: 318 },
+        { hex: "#e8d8b0", sym: "C", name: "Wheat", count: 260 },
+        { hex: "#7d9b6a", sym: "D", name: "Sage", count: 121 },
+        { hex: "#a84e59", sym: "E", name: "Berry", count: 64 },
+        { hex: "#2f2a28", sym: "F", name: "Espresso", count: 35 },
+      ];
+      const W = 40, H = 30;
+      // deterministic pseudo-image
+      function pick(x, y) {
+        const n = Math.sin(x * 0.7 + y * 0.4) * Math.cos(y * 0.9 - x * 0.2);
+        const r = (Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1;
+        const v = (n + 1) / 2 * 0.7 + Math.abs(r) * 0.3;
+        return Math.min(PALETTE.length - 1, Math.floor(v * PALETTE.length));
+      }
+      const grid = document.getElementById("grid");
+      grid.style.gridTemplateColumns = `repeat(${W}, 20px)`;
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const p = PALETTE[pick(x, y)];
+        const c = document.createElement("div");
+        c.className = "cell"; c.style.background = p.hex; c.textContent = p.sym;
+        grid.appendChild(c);
+      }
+      const pal = document.getElementById("palette");
+      PALETTE.forEach((p, i) => {
+        const b = document.createElement("button");
+        b.className = "swatch-row" + (i === 0 ? " selected" : "");
+        b.innerHTML = `<span class="swatch" style="background:${p.hex}"></span>
+          <span><span class="sym">${p.sym}</span> <span class="name">${p.name}</span></span>
+          <span class="count">${p.count}</span>`;
+        b.onclick = () => { document.querySelectorAll(".swatch-row").forEach(e => e.classList.remove("selected")); b.classList.add("selected"); };
+        pal.appendChild(b);
+      });
+
+      const root = document.documentElement;
+      document.getElementById("variant").addEventListener("click", (e) => {
+        const btn = e.target.closest("button"); if (!btn) return;
+        root.dataset.variant = btn.dataset.v;
+        [...e.currentTarget.children].forEach(c => c.setAttribute("aria-pressed", c === btn));
+      });
+      document.getElementById("theme").addEventListener("click", (e) => {
+        const btn = e.target.closest("button"); if (!btn) return;
+        root.dataset.theme = btn.dataset.t;
+        [...e.currentTarget.children].forEach(c => c.setAttribute("aria-pressed", c === btn));
+      });
+    </script>
+  </body>
+</html>

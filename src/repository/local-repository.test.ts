@@ -34,6 +34,22 @@ describe("local repository", () => {
     ]);
   });
 
+  it("deletes a Pattern Project without touching the others", async () => {
+    const repository = await createLocalRepository(
+      `knit-pro-${crypto.randomUUID()}`,
+    );
+    const keep = createEmptyPatternProject("Keep");
+    const remove = createEmptyPatternProject("Remove");
+    await repository.savePatternProject(keep);
+    await repository.savePatternProject(remove);
+
+    await repository.deletePatternProject(remove.id);
+
+    const listed = await repository.listPatternProjects();
+    expect(listed.map((project) => project.name)).toEqual(["Keep"]);
+    expect(await repository.getPatternProject(remove.id)).toBeUndefined();
+  });
+
   it("stores Yarn Inventory colors with schema version across reloads", async () => {
     const repository = await createLocalRepository(`knit-pro-${crypto.randomUUID()}`);
     const yarn = createYarnColor("Forest green", "#263e36");

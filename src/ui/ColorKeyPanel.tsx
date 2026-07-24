@@ -64,34 +64,37 @@ export function ColorKeyPanel({
 
   return (
     <div className="color-key-panel">
-      <ol className="chart-key" aria-label="Editable color key">
-        {chart.palette.map((entry) => (
-          <li key={entry.index}>
-            <button
-              type="button"
-              className={
-                entry.index === selected?.index
-                  ? "color-row selected"
-                  : "color-row"
-              }
-              onClick={() => setSelectedIndex(entry.index)}
-            >
-              <span
-                className="swatch"
-                style={{ background: entry.hex }}
-                aria-hidden="true"
-              />
-              <span>
-                {entry.symbol} {entry.yarnLabel ?? entry.hex} ·{" "}
-                {entry.stitchCount} stitches
-              </span>
-            </button>
-          </li>
-        ))}
-      </ol>
+      <div className="card">
+        <h3>Palette</h3>
+        <ol className="chart-key" aria-label="Editable color key">
+          {chart.palette.map((entry) => (
+            <li key={entry.index}>
+              <button
+                type="button"
+                className={
+                  entry.index === selected?.index
+                    ? "color-row selected"
+                    : "color-row"
+                }
+                onClick={() => setSelectedIndex(entry.index)}
+              >
+                <span
+                  className="swatch"
+                  style={{ background: entry.hex }}
+                  aria-hidden="true"
+                />
+                <span>
+                  {entry.symbol} {entry.yarnLabel ?? entry.hex} ·{" "}
+                  {entry.stitchCount} stitches
+                </span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      </div>
 
       {selected ? (
-        <div className="palette-actions">
+        <div className="palette-actions card">
           <h3>Edit {selected.symbol}</h3>
           <label>
             Replacement color
@@ -206,7 +209,7 @@ export function ColorKeyPanel({
         </div>
       ) : null}
 
-      <form className="yarn-form" onSubmit={handleAddYarn}>
+      <form className="yarn-form card" onSubmit={handleAddYarn}>
         <h3>Yarn Inventory</h3>
         <label>
           Name

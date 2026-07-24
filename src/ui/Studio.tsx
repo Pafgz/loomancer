@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   createInlineChartGenerator,
   type ChartGenerator,
@@ -7,11 +7,7 @@ import {
   DEFAULT_CHART_COLORS,
   DEFAULT_DETAIL,
   gridSizeFromDetail,
-  MAX_CHART_COLORS,
   MAX_CHART_DIMENSION,
-  MAX_DETAIL,
-  MIN_CHART_COLORS,
-  MIN_DETAIL,
 } from "../chart/chart-types";
 import { rasterizeSourceToRgba } from "../chart/rasterize-source";
 import {
@@ -27,6 +23,9 @@ import {
 } from "../image/validate-source-image";
 import { ChartView } from "./ChartView";
 import { ColorKeyPanel } from "./ColorKeyPanel";
+import { ExportMenu } from "./ExportMenu";
+import { ImageControls } from "./ImageControls";
+import { ThemeToggle } from "./ThemeToggle";
 
 type StudioProps = {
   project: PatternProject;
@@ -108,8 +107,6 @@ export function Studio({
     draft.naturalWidth,
     draft.naturalHeight,
   ]);
-
-  const crop = draft.crop;
 
   async function persist(
     updater: (current: PatternProject) => PatternProject,
@@ -367,24 +364,26 @@ export function Studio({
     });
   }
 
-  const previewStyle = useMemo(
-    () => ({
-      transform: `rotate(${draft.rotationDegrees}deg)`,
-    }),
-    [draft.rotationDegrees],
-  );
-
   return (
     <div className="studio">
       <header className="studio-header">
-        <div>
-          <button type="button" className="ghost" onClick={onBack}>
-            All projects
+        <div className="brand-mark">
+          <button
+            type="button"
+            className="ghost icon"
+            onClick={onBack}
+            aria-label="All projects"
+            title="All projects"
+          >
+            <span aria-hidden="true">←</span>
           </button>
-          <h1>{draft.name}</h1>
-          <p className="muted">Local Pattern Project</p>
+          <div className="header-titles">
+            <p className="brand">Local Pattern Project</p>
+            <h1>{draft.name}</h1>
+          </div>
         </div>
         <div className="actions">
+          <ThemeToggle />
           <button
             type="button"
             onClick={() => void handleUndo()}
@@ -399,212 +398,38 @@ export function Studio({
           >
             Redo
           </button>
-          <button type="button" className="primary" disabled>
-            Save Knit-ready Pattern
-          </button>
+          <ExportMenu chart={draft.chart} projectName={draft.name} />
         </div>
       </header>
 
       <div className="studio-layout">
         <section className="panel" aria-label="Image controls">
           <h2>Image controls</h2>
-          <label className="file-picker">
-            Select photo
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-              onChange={(event) => {
-                void handleFileChange(event.target.files);
-                event.target.value = "";
-              }}
-            />
-          </label>
-
-          {error ? (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
-          ) : null}
-
-          {draft.sourceImage && previewUrl ? (
-            <div className="image-editor">
-              <div
-                className="crop-preview"
-                style={{
-                  aspectRatio:
-                    crop && crop.height > 0
-                      ? `${crop.width} / ${crop.height}`
-                      : undefined,
-                }}
-                data-testid="crop-preview"
-                data-crop={
-                  crop
-                    ? `${crop.x},${crop.y},${crop.width},${crop.height}`
-                    : undefined
-                }
-              >
-                <img
-                  src={previewUrl}
-                  alt="Source preview"
-                  style={{
-                    ...previewStyle,
-                    width:
-                      crop && draft.naturalWidth
-                        ? `${(draft.naturalWidth / crop.width) * 100}%`
-                        : "100%",
-                    maxWidth: "none",
-                    maxHeight: "none",
-                    marginLeft:
-                      crop && crop.width
-                        ? `${(-crop.x / crop.width) * 100}%`
-                        : undefined,
-                    marginTop:
-                      crop && crop.height
-                        ? `${(-crop.y / crop.height) * 100}%`
-                        : undefined,
-                  }}
-                />
-              </div>
-              <p className="muted">
-                {draft.naturalWidth} × {draft.naturalHeight} · Rotation:{" "}
-                {draft.rotationDegrees}°
-              </p>
-              <button type="button" onClick={() => void handleRotate()}>
-                Rotate 90°
-              </button>
-              {crop ? (
-                <div className="crop-fields">
-                  <label>
-                    Crop X
-                    <input
-                      type="number"
-                      min={0}
-                      value={crop.x}
-                      onChange={(event) =>
-                        void updateCrop("x", event.target.value)
-                      }
-                    />
-                  </label>
-                  <label>
-                    Crop Y
-                    <input
-                      type="number"
-                      min={0}
-                      value={crop.y}
-                      onChange={(event) =>
-                        void updateCrop("y", event.target.value)
-                      }
-                    />
-                  </label>
-                  <label>
-                    Crop width
-                    <input
-                      type="number"
-                      min={1}
-                      value={crop.width}
-                      onChange={(event) =>
-                        void updateCrop("width", event.target.value)
-                      }
-                    />
-                  </label>
-                  <label>
-                    Crop height
-                    <input
-                      type="number"
-                      min={1}
-                      value={crop.height}
-                      onChange={(event) =>
-                        void updateCrop("height", event.target.value)
-                      }
-                    />
-                  </label>
-                </div>
-              ) : null}
-
-              <label>
-                Detail
-                <input
-                  type="range"
-                  min={MIN_DETAIL}
-                  max={MAX_DETAIL}
-                  value={draft.detailLevel}
-                  onChange={(event) =>
-                    void handleDetailChange(event.target.value)
-                  }
-                />
-                <small>
-                  {draft.chartWidth} × {draft.chartHeight} stitches
-                </small>
-              </label>
-              <div className="crop-fields">
-                <label>
-                  Stitch width
-                  <input
-                    type="number"
-                    min={1}
-                    max={MAX_CHART_DIMENSION}
-                    value={draft.chartWidth}
-                    onChange={(event) =>
-                      void handleDimensionChange(
-                        "chartWidth",
-                        event.target.value,
-                      )
-                    }
-                  />
-                </label>
-                <label>
-                  Row height
-                  <input
-                    type="number"
-                    min={1}
-                    max={MAX_CHART_DIMENSION}
-                    value={draft.chartHeight}
-                    onChange={(event) =>
-                      void handleDimensionChange(
-                        "chartHeight",
-                        event.target.value,
-                      )
-                    }
-                  />
-                </label>
-              </div>
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={draft.aspectLocked}
-                  onChange={(event) =>
-                    void persist((current) => ({
-                      ...current,
-                      aspectLocked: event.target.checked,
-                    }))
-                  }
-                />
-                Lock aspect ratio
-              </label>
-              <label>
-                Maximum colors
-                <input
-                  type="range"
-                  min={MIN_CHART_COLORS}
-                  max={MAX_CHART_COLORS}
-                  value={draft.maxColors}
-                  onChange={(event) => {
-                    setHoldGeneration(false);
-                    void persist((current) => ({
-                      ...current,
-                      maxColors: Number(event.target.value),
-                    }));
-                  }}
-                />
-                <small>{draft.maxColors} colors</small>
-              </label>
-            </div>
-          ) : (
-            <p className="muted">
-              Choose a JPEG, PNG, or WebP photo from this device. Photos stay on
-              your device.
-            </p>
-          )}
+          <ImageControls
+            draft={draft}
+            previewUrl={previewUrl}
+            error={error}
+            onFileChange={(files) => void handleFileChange(files)}
+            onRotate={() => void handleRotate()}
+            onCropChange={(field, value) => void updateCrop(field, value)}
+            onDetailChange={(value) => void handleDetailChange(value)}
+            onDimensionChange={(field, value) =>
+              void handleDimensionChange(field, value)
+            }
+            onAspectLockChange={(checked) =>
+              void persist((current) => ({
+                ...current,
+                aspectLocked: checked,
+              }))
+            }
+            onMaxColorsChange={(value) => {
+              setHoldGeneration(false);
+              void persist((current) => ({
+                ...current,
+                maxColors: value,
+              }));
+            }}
+          />
         </section>
 
         <section className="chart-stage" aria-label="Colorwork Chart">

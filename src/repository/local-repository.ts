@@ -1,14 +1,14 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { PatternProject, YarnColor } from "../domain/models";
 
-export const DEFAULT_DATABASE_NAME = "knit-pro";
+export const DEFAULT_DATABASE_NAME = "loomancer";
 const DATABASE_VERSION = 3;
 
 type StoredPatternProject = Omit<PatternProject, "sourceImage"> & {
   sourceImageBytes?: ArrayBuffer;
 };
 
-type KnitProDb = DBSchema & {
+type LoomancerDb = DBSchema & {
   projects: {
     key: string;
     value: StoredPatternProject;
@@ -25,14 +25,15 @@ export type LocalRepository = {
   savePatternProject: (project: PatternProject) => Promise<void>;
   getPatternProject: (id: string) => Promise<PatternProject | undefined>;
   listPatternProjects: () => Promise<PatternProject[]>;
+  deletePatternProject: (id: string) => Promise<void>;
   saveYarnColor: (yarn: YarnColor) => Promise<void>;
   listYarnColors: () => Promise<YarnColor[]>;
 };
 
-async function openKnitProDb(
+async function openLoomancerDb(
   databaseName: string,
-): Promise<IDBPDatabase<KnitProDb>> {
-  return openDB<KnitProDb>(databaseName, DATABASE_VERSION, {
+): Promise<IDBPDatabase<LoomancerDb>> {
+  return openDB<LoomancerDb>(databaseName, DATABASE_VERSION, {
     upgrade(database) {
       if (!database.objectStoreNames.contains("projects")) {
         const projects = database.createObjectStore("projects", {
@@ -94,7 +95,7 @@ function fromStored(stored: StoredPatternProject): PatternProject {
 export async function createLocalRepository(
   databaseName: string = DEFAULT_DATABASE_NAME,
 ): Promise<LocalRepository> {
-  const database = await openKnitProDb(databaseName);
+  const database = await openLoomancerDb(databaseName);
 
   return {
     async savePatternProject(project) {
@@ -107,6 +108,9 @@ export async function createLocalRepository(
     async listPatternProjects() {
       const stored = await database.getAllFromIndex("projects", "by-updated");
       return stored.map(fromStored);
+    },
+    async deletePatternProject(id) {
+      await database.delete("projects", id);
     },
     async saveYarnColor(yarn) {
       await database.put("inventory", yarn);

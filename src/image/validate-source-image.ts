@@ -83,7 +83,7 @@ export async function validateSourceImage(
       return {
         ok: false,
         message:
-          "That photo is above 20 megapixels. Resize it before importing so Knit-Pro stays responsive.",
+          "That photo is above 20 megapixels. Resize it before importing so Loomancer stays responsive.",
       };
     }
 

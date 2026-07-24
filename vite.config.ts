@@ -3,20 +3,26 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
+// On GitHub Pages the app is served from https://<user>.github.io/<repo>/, so the
+// CI build sets a subpath base. Local dev and other hosts stay at root.
+const base = process.env.GITHUB_PAGES === "true" ? "/loomancer/" : "/";
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg"],
       manifest: {
-        name: "Knit-Pro",
-        short_name: "Knit-Pro",
-        description: "Create Colorwork Charts from photos on your device.",
-        theme_color: "#244b3c",
-        background_color: "#f6f4ee",
+        name: "Loomancer",
+        short_name: "Loomancer",
+        description: "Conjure Colorwork Charts from photos on your device.",
+        theme_color: "#4f46e5",
+        background_color: "#f1f3f7",
         display: "standalone",
-        start_url: "/",
+        start_url: ".",
+        scope: base,
         icons: [
           {
             src: "pwa-192.png",
@@ -32,6 +38,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        cleanupOutdatedCaches: true,
+        navigateFallback: "index.html",
       },
     }),
   ],
