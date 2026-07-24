@@ -2,7 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { PatternProject, YarnColor } from "../domain/models";
 
 export const DEFAULT_DATABASE_NAME = "knit-pro";
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 
 type StoredPatternProject = Omit<PatternProject, "sourceImage"> & {
   sourceImageBytes?: ArrayBuffer;
@@ -70,6 +70,12 @@ function fromStored(stored: StoredPatternProject): PatternProject {
     ...rest,
     rotationDegrees: rest.rotationDegrees ?? 0,
     crop: rest.crop ?? null,
+    detailLevel: rest.detailLevel ?? 6,
+    chartWidth: rest.chartWidth ?? 48,
+    chartHeight: rest.chartHeight ?? 36,
+    aspectLocked: rest.aspectLocked ?? true,
+    maxColors: rest.maxColors ?? 6,
+    chart: rest.chart ?? null,
   };
 
   if (!sourceImageBytes) {

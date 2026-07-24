@@ -192,14 +192,65 @@ button.ghost {
   font-size: 0.95rem;
 }
 
-.crop-fields input {
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.chart-view {
+  display: grid;
+  gap: var(--sp-4);
   width: 100%;
-  min-height: 2.5rem;
-  padding: var(--sp-2);
-  border: 1px solid var(--line);
-  border-radius: 0.25rem;
-  background: var(--surface);
-  font: inherit;
+}
+
+.progress {
+  margin: 0;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.chart-grid {
+  display: grid;
+  width: max-content;
+  max-width: 100%;
+  overflow: auto;
+  border-top: 1px solid #777;
+  border-left: 1px solid #777;
+  background: #fff;
+}
+
+.chart-cell {
+  display: grid;
+  place-items: center;
+  width: 1.1rem;
+  aspect-ratio: 1;
+  border-right: 1px solid rgb(0 0 0 / 0.35);
+  border-bottom: 1px solid rgb(0 0 0 / 0.35);
+  color: #111;
+  font: 700 0.55rem/1 ui-monospace, monospace;
+}
+
+.chart-key {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.chart-key li {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.swatch {
+  width: 1.5rem;
+  aspect-ratio: 1;
+  border: 1px solid #555;
+  border-radius: 0.2rem;
 }
 
 .visually-hidden {

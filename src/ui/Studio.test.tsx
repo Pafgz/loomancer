@@ -14,6 +14,28 @@ const tinyPng = Uint8Array.from([
   0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
 ]);
 
+function fakeRgba(width: number, height: number) {
+  const data = new Uint8ClampedArray(width * height * 4);
+  data.fill(180);
+  for (let i = 3; i < data.length; i += 4) {
+    data[i] = 255;
+  }
+  return { width, height, data };
+}
+
+const stubRasterize = vi.fn(async () => fakeRgba(20, 10));
+const stubGenerate = vi.fn(async ({ width, height, maxColors }) => ({
+  width,
+  height,
+  cells: Array.from({ length: width * height }, () => 0),
+  palette: Array.from({ length: Math.min(maxColors, 1) }, (_, index) => ({
+    index,
+    hex: "#b4b4b4",
+    symbol: "▲",
+    stitchCount: width * height,
+  })),
+}));
+
 describe("Studio image controls", () => {
   it("selects, rotates, crops, and restores a source image after reopen", async () => {
     const user = userEvent.setup();
@@ -34,6 +56,8 @@ describe("Studio image controls", () => {
         onBack={() => undefined}
         onProjectChange={onProjectChange}
         decodeSourceImage={decode}
+        rasterizeSource={stubRasterize}
+        generateChart={stubGenerate}
       />,
     );
 
@@ -81,6 +105,8 @@ describe("Studio image controls", () => {
         onBack={() => undefined}
         onProjectChange={onProjectChange}
         decodeSourceImage={decode}
+        rasterizeSource={stubRasterize}
+        generateChart={stubGenerate}
       />,
     );
 
@@ -98,6 +124,8 @@ describe("Studio image controls", () => {
         onBack={() => undefined}
         onProjectChange={async () => undefined}
         decodeSourceImage={async () => ({ width: 10, height: 10 })}
+        rasterizeSource={stubRasterize}
+        generateChart={stubGenerate}
       />,
     );
 
@@ -108,5 +136,52 @@ describe("Studio image controls", () => {
     expect(
       await screen.findByRole("alert"),
     ).toHaveTextContent(/jpeg, png, or webp/i);
+  });
+
+  it("generates a Colorwork Chart from detail and color controls", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const project = createEmptyPatternProject("Mountain fox");
+    const onProjectChange = vi.fn(async () => undefined);
+    const decode = vi.fn(async () => ({ width: 200, height: 100 }));
+
+    render(
+      <Studio
+        project={project}
+        onBack={() => undefined}
+        onProjectChange={onProjectChange}
+        decodeSourceImage={decode}
+        rasterizeSource={stubRasterize}
+        generateChart={stubGenerate}
+      />,
+    );
+
+    const fileInput = screen.getByLabelText(/select photo/i);
+    await user.upload(
+      fileInput,
+      new File([tinyPng], "fox.png", { type: "image/png" }),
+    );
+
+    await waitFor(() => {
+      expect(stubGenerate).toHaveBeenCalled();
+    });
+
+    fireEvent.change(screen.getByLabelText(/maximum colors/i), {
+      target: { value: "4" },
+    });
+    await vi.advanceTimersByTimeAsync(350);
+
+    await waitFor(() => {
+      expect(stubGenerate).toHaveBeenCalledWith(
+        expect.objectContaining({ maxColors: 4 }),
+      );
+    });
+
+    expect(
+      await screen.findByRole("table", { name: /colorwork chart/i }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/▲ #b4b4b4/i).length).toBeGreaterThan(0);
+
+    vi.useRealTimers();
   });
 });

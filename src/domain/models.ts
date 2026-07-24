@@ -1,4 +1,4 @@
-export const PATTERN_PROJECT_SCHEMA_VERSION = 2;
+export const PATTERN_PROJECT_SCHEMA_VERSION = 3;
 export const YARN_INVENTORY_SCHEMA_VERSION = 1;
 
 export type RotationDegrees = 0 | 90 | 180 | 270;
@@ -8,6 +8,20 @@ export type CropRect = {
   y: number;
   width: number;
   height: number;
+};
+
+export type ChartPaletteEntry = {
+  index: number;
+  hex: string;
+  symbol: string;
+  stitchCount: number;
+};
+
+export type ColorworkChart = {
+  width: number;
+  height: number;
+  cells: number[];
+  palette: ChartPaletteEntry[];
 };
 
 export type PatternProject = {
@@ -23,6 +37,12 @@ export type PatternProject = {
   naturalHeight?: number;
   rotationDegrees: RotationDegrees;
   crop: CropRect | null;
+  detailLevel: number;
+  chartWidth: number;
+  chartHeight: number;
+  aspectLocked: boolean;
+  maxColors: number;
+  chart: ColorworkChart | null;
 };
 
 export type YarnColor = {
@@ -47,6 +67,12 @@ export function createEmptyPatternProject(name: string): PatternProject {
     updatedAt: now,
     rotationDegrees: 0,
     crop: null,
+    detailLevel: 6,
+    chartWidth: 48,
+    chartHeight: 36,
+    aspectLocked: true,
+    maxColors: 6,
+    chart: null,
   };
 }
 

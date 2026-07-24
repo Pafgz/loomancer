@@ -1,5 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  createInlineChartGenerator,
+  type ChartGenerator,
+} from "../chart/chart-generator";
+import {
+  DEFAULT_CHART_COLORS,
+  DEFAULT_DETAIL,
+  gridSizeFromDetail,
+  MAX_CHART_COLORS,
+  MAX_CHART_DIMENSION,
+  MAX_DETAIL,
+  MIN_CHART_COLORS,
+  MIN_DETAIL,
+} from "../chart/chart-types";
+import { rasterizeSourceToRgba } from "../chart/rasterize-source";
+import {
   fullImageCrop,
   rotateClockwise,
   type PatternProject,
@@ -9,24 +24,33 @@ import {
   validateSourceImage,
   type SourceImageDecoder,
 } from "../image/validate-source-image";
+import { ChartView } from "./ChartView";
 
 type StudioProps = {
   project: PatternProject;
   onBack: () => void;
   onProjectChange: (project: PatternProject) => Promise<void>;
   decodeSourceImage?: SourceImageDecoder;
+  generateChart?: ChartGenerator;
+  rasterizeSource?: typeof rasterizeSourceToRgba;
 };
+
+const GENERATE_DEBOUNCE_MS = 300;
 
 export function Studio({
   project,
   onBack,
   onProjectChange,
   decodeSourceImage = defaultDecodeSourceImage,
+  generateChart = createInlineChartGenerator(),
+  rasterizeSource = rasterizeSourceToRgba,
 }: StudioProps) {
   const [draft, setDraft] = useState(project);
   const draftRef = useRef(project);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const generationIdRef = useRef(0);
 
   useEffect(() => {
     setDraft(project);
@@ -44,6 +68,34 @@ export function Studio({
     return () => URL.revokeObjectURL(url);
   }, [draft.sourceImage]);
 
+  useEffect(() => {
+    if (
+      !draft.sourceImage ||
+      !draft.crop ||
+      !draft.naturalWidth ||
+      !draft.naturalHeight
+    ) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void runGeneration(draftRef.current);
+    }, GENERATE_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timeoutId);
+    // Intentionally regenerate when generation inputs change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    draft.sourceImage,
+    draft.crop,
+    draft.rotationDegrees,
+    draft.chartWidth,
+    draft.chartHeight,
+    draft.maxColors,
+    draft.naturalWidth,
+    draft.naturalHeight,
+  ]);
+
   const crop = draft.crop;
 
   async function persist(
@@ -56,6 +108,60 @@ export function Studio({
     draftRef.current = stamped;
     setDraft(stamped);
     await onProjectChange(stamped);
+  }
+
+  async function runGeneration(current: PatternProject) {
+    if (
+      !current.sourceImage ||
+      !current.crop ||
+      !current.naturalWidth ||
+      !current.naturalHeight
+    ) {
+      return;
+    }
+
+    const generationId = generationIdRef.current + 1;
+    generationIdRef.current = generationId;
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      const image = await rasterizeSource({
+        sourceImage: current.sourceImage,
+        naturalWidth: current.naturalWidth,
+        naturalHeight: current.naturalHeight,
+        rotationDegrees: current.rotationDegrees,
+        crop: current.crop,
+      });
+      const chart = await generateChart({
+        image,
+        width: current.chartWidth,
+        height: current.chartHeight,
+        maxColors: current.maxColors,
+      });
+
+      if (generationId !== generationIdRef.current) {
+        return;
+      }
+
+      await persist((latest) => ({
+        ...latest,
+        chart,
+      }));
+    } catch (generationError) {
+      if (generationId !== generationIdRef.current) {
+        return;
+      }
+      setError(
+        generationError instanceof Error
+          ? generationError.message
+          : "Chart generation failed",
+      );
+    } finally {
+      if (generationId === generationIdRef.current) {
+        setIsGenerating(false);
+      }
+    }
   }
 
   async function handleFileChange(fileList: FileList | null) {
@@ -71,6 +177,8 @@ export function Studio({
     }
 
     setError(null);
+    const aspect = validation.width / Math.max(1, validation.height);
+    const grid = gridSizeFromDetail(DEFAULT_DETAIL, aspect);
     await persist((current) => ({
       ...current,
       sourceImage: file,
@@ -80,6 +188,12 @@ export function Studio({
       naturalHeight: validation.height,
       rotationDegrees: 0,
       crop: fullImageCrop(validation.width, validation.height),
+      detailLevel: DEFAULT_DETAIL,
+      chartWidth: grid.width,
+      chartHeight: grid.height,
+      aspectLocked: true,
+      maxColors: current.maxColors || DEFAULT_CHART_COLORS,
+      chart: current.chart,
     }));
   }
 
@@ -126,11 +240,64 @@ export function Studio({
     });
   }
 
+  async function handleDetailChange(rawValue: string) {
+    const detail = Number(rawValue);
+    if (!Number.isFinite(detail) || !draft.crop) {
+      return;
+    }
+    const aspect = draft.crop.width / Math.max(1, draft.crop.height);
+    const grid = gridSizeFromDetail(detail, aspect);
+    await persist((current) => ({
+      ...current,
+      detailLevel: detail,
+      chartWidth: grid.width,
+      chartHeight: grid.height,
+    }));
+  }
+
+  async function handleDimensionChange(
+    field: "chartWidth" | "chartHeight",
+    rawValue: string,
+  ) {
+    const value = Number(rawValue);
+    if (!Number.isFinite(value)) {
+      return;
+    }
+    const clamped = Math.min(MAX_CHART_DIMENSION, Math.max(1, Math.round(value)));
+    await persist((current) => {
+      if (!current.aspectLocked || !current.crop) {
+        return {
+          ...current,
+          [field]: clamped,
+        };
+      }
+
+      const aspect = current.crop.width / Math.max(1, current.crop.height);
+      if (field === "chartWidth") {
+        return {
+          ...current,
+          chartWidth: clamped,
+          chartHeight: Math.max(
+            1,
+            Math.min(MAX_CHART_DIMENSION, Math.round(clamped / aspect)),
+          ),
+        };
+      }
+
+      return {
+        ...current,
+        chartHeight: clamped,
+        chartWidth: Math.max(
+          1,
+          Math.min(MAX_CHART_DIMENSION, Math.round(clamped * aspect)),
+        ),
+      };
+    });
+  }
+
   const previewStyle = useMemo(
     () => ({
       transform: `rotate(${draft.rotationDegrees}deg)`,
-      maxWidth: "100%",
-      maxHeight: "16rem",
     }),
     [draft.rotationDegrees],
   );
@@ -222,10 +389,6 @@ export function Studio({
                 {draft.naturalWidth} × {draft.naturalHeight} · Rotation:{" "}
                 {draft.rotationDegrees}°
               </p>
-              <p className="muted">
-                Original photo is kept intact; crop and rotation are parameters
-                only.
-              </p>
               <button type="button" onClick={() => void handleRotate()}>
                 Rotate 90°
               </button>
@@ -277,6 +440,83 @@ export function Studio({
                   </label>
                 </div>
               ) : null}
+
+              <label>
+                Detail
+                <input
+                  type="range"
+                  min={MIN_DETAIL}
+                  max={MAX_DETAIL}
+                  value={draft.detailLevel}
+                  onChange={(event) =>
+                    void handleDetailChange(event.target.value)
+                  }
+                />
+                <small>
+                  {draft.chartWidth} × {draft.chartHeight} stitches
+                </small>
+              </label>
+              <div className="crop-fields">
+                <label>
+                  Stitch width
+                  <input
+                    type="number"
+                    min={1}
+                    max={MAX_CHART_DIMENSION}
+                    value={draft.chartWidth}
+                    onChange={(event) =>
+                      void handleDimensionChange(
+                        "chartWidth",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </label>
+                <label>
+                  Row height
+                  <input
+                    type="number"
+                    min={1}
+                    max={MAX_CHART_DIMENSION}
+                    value={draft.chartHeight}
+                    onChange={(event) =>
+                      void handleDimensionChange(
+                        "chartHeight",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </label>
+              </div>
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={draft.aspectLocked}
+                  onChange={(event) =>
+                    void persist((current) => ({
+                      ...current,
+                      aspectLocked: event.target.checked,
+                    }))
+                  }
+                />
+                Lock aspect ratio
+              </label>
+              <label>
+                Maximum colors
+                <input
+                  type="range"
+                  min={MIN_CHART_COLORS}
+                  max={MAX_CHART_COLORS}
+                  value={draft.maxColors}
+                  onChange={(event) =>
+                    void persist((current) => ({
+                      ...current,
+                      maxColors: Number(event.target.value),
+                    }))
+                  }
+                />
+                <small>{draft.maxColors} colors</small>
+              </label>
             </div>
           ) : (
             <p className="muted">
@@ -288,14 +528,39 @@ export function Studio({
 
         <section className="chart-stage" aria-label="Colorwork Chart">
           <h2 className="visually-hidden">Colorwork Chart</h2>
-          <p className="muted">Chart preview will appear here after generation.</p>
+          {draft.chart ? (
+            <ChartView chart={draft.chart} isGenerating={isGenerating} />
+          ) : (
+            <p className="muted">
+              {isGenerating
+                ? "Generating Colorwork Chart…"
+                : "Chart preview will appear here after generation."}
+            </p>
+          )}
         </section>
 
         <section className="panel" aria-label="Color key">
           <h2>Color key</h2>
-          <p className="muted">
-            Chart colors and Yarn Inventory matches will appear here.
-          </p>
+          {draft.chart ? (
+            <ol className="chart-key">
+              {draft.chart.palette.map((entry) => (
+                <li key={entry.index}>
+                  <span
+                    className="swatch"
+                    style={{ background: entry.hex }}
+                    aria-hidden="true"
+                  />
+                  <span>
+                    {entry.symbol} {entry.hex} · {entry.stitchCount} stitches
+                  </span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="muted">
+              Chart colors and Yarn Inventory matches will appear here.
+            </p>
+          )}
         </section>
       </div>
     </div>

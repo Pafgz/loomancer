@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import {
+  createWorkerChartGenerator,
+} from "./chart/chart-generator";
+import {
   createEmptyPatternProject,
   type PatternProject,
 } from "./domain/models";
@@ -9,6 +12,8 @@ import { Studio } from "./ui/Studio";
 type AppProps = {
   repository: LocalRepository;
 };
+
+const generateChart = createWorkerChartGenerator();
 
 export function App({ repository }: AppProps) {
   const [projects, setProjects] = useState<PatternProject[]>([]);
@@ -55,6 +60,7 @@ export function App({ repository }: AppProps) {
         project={activeProject}
         onBack={() => setActiveProject(null)}
         onProjectChange={handleProjectChange}
+        generateChart={generateChart}
       />
     );
   }
