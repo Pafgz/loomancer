@@ -66,12 +66,18 @@ async function toStored(
 
 function fromStored(stored: StoredPatternProject): PatternProject {
   const { sourceImageBytes, ...rest } = stored;
+  const normalized: PatternProject = {
+    ...rest,
+    rotationDegrees: rest.rotationDegrees ?? 0,
+    crop: rest.crop ?? null,
+  };
+
   if (!sourceImageBytes) {
-    return rest;
+    return normalized;
   }
 
   return {
-    ...rest,
+    ...normalized,
     sourceImage: new Blob([sourceImageBytes], {
       type: rest.sourceMimeType ?? "application/octet-stream",
     }),

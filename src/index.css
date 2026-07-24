@@ -167,6 +167,14 @@ button.ghost {
 }
 
 .image-editor img {
+  display: block;
+  border: 0;
+  background: #ddd8cc;
+}
+
+.crop-preview {
+  overflow: hidden;
+  width: min(100%, 18rem);
   justify-self: center;
   border: 1px solid var(--line);
   background: #ddd8cc;

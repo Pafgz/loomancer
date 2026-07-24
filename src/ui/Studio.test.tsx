@@ -55,6 +55,13 @@ describe("Studio image controls", () => {
     const widthInput = screen.getByLabelText(/crop width/i);
     fireEvent.change(widthInput, { target: { value: "120" } });
 
+    await waitFor(() => {
+      expect(screen.getByTestId("crop-preview")).toHaveAttribute(
+        "data-crop",
+        "0,0,120,100",
+      );
+    });
+
     await waitFor(async () => {
       const saved = await repository.getPatternProject(project.id);
       expect(saved?.sourceFileName).toBe("fox.png");

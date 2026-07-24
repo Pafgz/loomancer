@@ -181,11 +181,43 @@ export function Studio({
 
           {draft.sourceImage && previewUrl ? (
             <div className="image-editor">
-              <img
-                src={previewUrl}
-                alt="Source preview"
-                style={previewStyle}
-              />
+              <div
+                className="crop-preview"
+                style={{
+                  aspectRatio:
+                    crop && crop.height > 0
+                      ? `${crop.width} / ${crop.height}`
+                      : undefined,
+                }}
+                data-testid="crop-preview"
+                data-crop={
+                  crop
+                    ? `${crop.x},${crop.y},${crop.width},${crop.height}`
+                    : undefined
+                }
+              >
+                <img
+                  src={previewUrl}
+                  alt="Source preview"
+                  style={{
+                    ...previewStyle,
+                    width:
+                      crop && draft.naturalWidth
+                        ? `${(draft.naturalWidth / crop.width) * 100}%`
+                        : "100%",
+                    maxWidth: "none",
+                    maxHeight: "none",
+                    marginLeft:
+                      crop && crop.width
+                        ? `${(-crop.x / crop.width) * 100}%`
+                        : undefined,
+                    marginTop:
+                      crop && crop.height
+                        ? `${(-crop.y / crop.height) * 100}%`
+                        : undefined,
+                  }}
+                />
+              </div>
               <p className="muted">
                 {draft.naturalWidth} × {draft.naturalHeight} · Rotation:{" "}
                 {draft.rotationDegrees}°
