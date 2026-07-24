@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   createInlineChartGenerator,
   type ChartGenerator,
@@ -13,9 +13,15 @@ import { rasterizeSourceToRgba } from "../chart/rasterize-source";
 import {
   fullImageCrop,
   rotateClockwise,
+  type CropRect,
   type PatternProject,
   type YarnColor,
 } from "../domain/models";
+import {
+  fitCropToAspect,
+  maxCropForAspect,
+  orientedDimensions,
+} from "../image/framing";
 import {
   defaultDecodeSourceImage,
   validateSourceImage,
@@ -26,6 +32,8 @@ import { ColorKeyPanel } from "./ColorKeyPanel";
 import { ExportMenu } from "./ExportMenu";
 import { ImageControls } from "./ImageControls";
 import { ThemeToggle } from "./ThemeToggle";
+
+type StudioTab = "framing" | "chart" | "colors";
 
 type StudioProps = {
   project: PatternProject;
@@ -60,12 +68,33 @@ export function Studio({
   const [undoStack, setUndoStack] = useState<PatternProject["chart"][]>([]);
   const [redoStack, setRedoStack] = useState<PatternProject["chart"][]>([]);
   const [holdGeneration, setHoldGeneration] = useState(false);
+  const [framingCrop, setFramingCrop] = useState<CropRect | null>(
+    project.crop,
+  );
+  const [studioTab, setStudioTab] = useState<StudioTab>("framing");
   const generationIdRef = useRef(0);
 
   useEffect(() => {
     setDraft(project);
     draftRef.current = project;
   }, [project]);
+
+  // Sync framing draft only when the applied crop / source / rotation changes —
+  // not on unrelated project saves (detail, colors), so dirty pan/zoom survives.
+  const framingSyncKey = [
+    project.id,
+    project.rotationDegrees,
+    project.sourceFileName ?? "",
+    project.crop
+      ? `${project.crop.x},${project.crop.y},${project.crop.width},${project.crop.height}`
+      : "none",
+  ].join("|");
+
+  useEffect(() => {
+    setFramingCrop(project.crop);
+    // framingSyncKey captures the applied crop identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [framingSyncKey]);
 
   useEffect(() => {
     if (!draft.sourceImage) {
@@ -244,6 +273,9 @@ export function Studio({
     setHoldGeneration(false);
     const aspect = validation.width / Math.max(1, validation.height);
     const grid = gridSizeFromDetail(DEFAULT_DETAIL, aspect);
+    const nextCrop = fullImageCrop(validation.width, validation.height);
+    setFramingCrop(nextCrop);
+    setStudioTab("framing");
     await persist((current) => ({
       ...current,
       sourceImage: file,
@@ -252,7 +284,7 @@ export function Studio({
       naturalWidth: validation.width,
       naturalHeight: validation.height,
       rotationDegrees: 0,
-      crop: fullImageCrop(validation.width, validation.height),
+      crop: nextCrop,
       detailLevel: DEFAULT_DETAIL,
       chartWidth: grid.width,
       chartHeight: grid.height,
@@ -262,49 +294,56 @@ export function Studio({
     }));
   }
 
-  async function handleRotate() {
-    setHoldGeneration(false);
-    await persist((current) => {
-      if (!current.sourceImage) {
-        return current;
-      }
-      return {
-        ...current,
-        rotationDegrees: rotateClockwise(current.rotationDegrees),
-      };
-    });
-  }
+  const oriented = useMemo(() => {
+    if (!draft.naturalWidth || !draft.naturalHeight) {
+      return { width: 0, height: 0 };
+    }
+    return orientedDimensions(
+      draft.naturalWidth,
+      draft.naturalHeight,
+      draft.rotationDegrees,
+    );
+  }, [draft.naturalWidth, draft.naturalHeight, draft.rotationDegrees]);
 
-  async function updateCrop(
-    field: "x" | "y" | "width" | "height",
-    rawValue: string,
-  ) {
-    const value = Number(rawValue);
-    if (!Number.isFinite(value)) {
+  async function handleRotate() {
+    if (!draft.naturalWidth || !draft.naturalHeight) {
       return;
     }
-
-    await persist((current) => {
-      if (!current.naturalWidth || !current.naturalHeight || !current.crop) {
-        return current;
-      }
-
-      const nextCrop = {
-        ...current.crop,
-        [field]: Math.max(0, Math.round(value)),
-      };
-
-      const maxWidth = current.naturalWidth - nextCrop.x;
-      const maxHeight = current.naturalHeight - nextCrop.y;
-      nextCrop.width = Math.min(Math.max(1, nextCrop.width), maxWidth);
-      nextCrop.height = Math.min(Math.max(1, nextCrop.height), maxHeight);
-
-      return {
-        ...current,
-        crop: nextCrop,
-      };
-    });
+    const nextRotation = rotateClockwise(draft.rotationDegrees);
+    const nextOriented = orientedDimensions(
+      draft.naturalWidth,
+      draft.naturalHeight,
+      nextRotation,
+    );
+    const nextCrop = draft.aspectLocked
+      ? maxCropForAspect(
+          draft.chartWidth / Math.max(1, draft.chartHeight),
+          nextOriented.width,
+          nextOriented.height,
+        )
+      : fullImageCrop(nextOriented.width, nextOriented.height);
+    setFramingCrop(nextCrop);
     setHoldGeneration(false);
+    await persist((current) => ({
+      ...current,
+      rotationDegrees: nextRotation,
+      crop: nextCrop,
+    }));
+  }
+
+  async function applyFraming() {
+    if (!framingCrop) {
+      return;
+    }
+    setHoldGeneration(false);
+    await persist((current) => ({
+      ...current,
+      crop: framingCrop,
+    }));
+  }
+
+  function handleFramingCropChange(crop: CropRect) {
+    setFramingCrop(crop);
   }
 
   async function handleDetailChange(rawValue: string) {
@@ -333,35 +372,72 @@ export function Studio({
     }
     const clamped = Math.min(MAX_CHART_DIMENSION, Math.max(1, Math.round(value)));
     setHoldGeneration(false);
-    await persist((current) => {
-      if (!current.aspectLocked || !current.crop) {
-        return {
-          ...current,
-          [field]: clamped,
-        };
-      }
 
-      const aspect = current.crop.width / Math.max(1, current.crop.height);
+    const aspectSource = framingCrop ?? draft.crop;
+    const aspect = aspectSource
+      ? aspectSource.width / Math.max(1, aspectSource.height)
+      : draft.chartWidth / Math.max(1, draft.chartHeight);
+
+    let chartWidth = draft.chartWidth;
+    let chartHeight = draft.chartHeight;
+    if (!draft.aspectLocked) {
       if (field === "chartWidth") {
-        return {
-          ...current,
-          chartWidth: clamped,
-          chartHeight: Math.max(
-            1,
-            Math.min(MAX_CHART_DIMENSION, Math.round(clamped / aspect)),
-          ),
-        };
+        chartWidth = clamped;
+      } else {
+        chartHeight = clamped;
       }
+    } else if (field === "chartWidth") {
+      chartWidth = clamped;
+      chartHeight = Math.max(
+        1,
+        Math.min(MAX_CHART_DIMENSION, Math.round(clamped / aspect)),
+      );
+    } else {
+      chartHeight = clamped;
+      chartWidth = Math.max(
+        1,
+        Math.min(MAX_CHART_DIMENSION, Math.round(clamped * aspect)),
+      );
+    }
 
-      return {
-        ...current,
-        chartHeight: clamped,
-        chartWidth: Math.max(
-          1,
-          Math.min(MAX_CHART_DIMENSION, Math.round(clamped * aspect)),
+    if (draft.aspectLocked && framingCrop && oriented.width && oriented.height) {
+      setFramingCrop(
+        fitCropToAspect(
+          framingCrop,
+          chartWidth / Math.max(1, chartHeight),
+          oriented.width,
+          oriented.height,
         ),
-      };
-    });
+      );
+    }
+
+    await persist((current) => ({
+      ...current,
+      chartWidth,
+      chartHeight,
+    }));
+  }
+
+  async function handleAspectLockChange(checked: boolean) {
+    await persist((current) => ({
+      ...current,
+      aspectLocked: checked,
+    }));
+    if (
+      checked &&
+      framingCrop &&
+      oriented.width &&
+      oriented.height
+    ) {
+      setFramingCrop(
+        fitCropToAspect(
+          framingCrop,
+          draft.chartWidth / Math.max(1, draft.chartHeight),
+          oriented.width,
+          oriented.height,
+        ),
+      );
+    }
   }
 
   return (
@@ -402,25 +478,50 @@ export function Studio({
         </div>
       </header>
 
-      <div className="studio-layout">
-        <section className="panel" aria-label="Image controls">
-          <h2>Image controls</h2>
+      <div className="studio-layout" data-tab={studioTab}>
+        <nav className="studio-tabs" aria-label="Studio sections">
+          {(
+            [
+              ["framing", "Framing"],
+              ["chart", "Chart"],
+              ["colors", "Colors"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={studioTab === id ? "studio-tab active" : "studio-tab"}
+              aria-current={studioTab === id ? "page" : undefined}
+              onClick={() => setStudioTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        <section
+          className="panel studio-pane"
+          data-pane="framing"
+          aria-label="Image controls"
+        >
+          <h2>Framing</h2>
           <ImageControls
             draft={draft}
+            framingCrop={framingCrop}
+            imageWidth={oriented.width}
+            imageHeight={oriented.height}
             previewUrl={previewUrl}
             error={error}
             onFileChange={(files) => void handleFileChange(files)}
             onRotate={() => void handleRotate()}
-            onCropChange={(field, value) => void updateCrop(field, value)}
+            onFramingCropChange={handleFramingCropChange}
+            onApplyFraming={() => void applyFraming()}
             onDetailChange={(value) => void handleDetailChange(value)}
             onDimensionChange={(field, value) =>
               void handleDimensionChange(field, value)
             }
             onAspectLockChange={(checked) =>
-              void persist((current) => ({
-                ...current,
-                aspectLocked: checked,
-              }))
+              void handleAspectLockChange(checked)
             }
             onMaxColorsChange={(value) => {
               setHoldGeneration(false);
@@ -432,7 +533,11 @@ export function Studio({
           />
         </section>
 
-        <section className="chart-stage" aria-label="Colorwork Chart">
+        <section
+          className="chart-stage studio-pane"
+          data-pane="chart"
+          aria-label="Colorwork Chart"
+        >
           <h2 className="visually-hidden">Colorwork Chart</h2>
           {draft.chart ? (
             <ChartView chart={draft.chart} isGenerating={isGenerating} />
@@ -445,7 +550,11 @@ export function Studio({
           )}
         </section>
 
-        <section className="panel" aria-label="Color key">
+        <section
+          className="panel studio-pane"
+          data-pane="colors"
+          aria-label="Color key"
+        >
           <h2>Color key</h2>
           {draft.chart ? (
             <ColorKeyPanel

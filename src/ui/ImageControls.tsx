@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import {
   MAX_CHART_COLORS,
   MAX_CHART_DIMENSION,
@@ -6,15 +5,21 @@ import {
   MIN_CHART_COLORS,
   MIN_DETAIL,
 } from "../chart/chart-types";
-import type { PatternProject } from "../domain/models";
+import type { CropRect, PatternProject } from "../domain/models";
+import { cropsEqual } from "../image/framing";
+import { CropFrame } from "./CropFrame";
 
 type ImageControlsProps = {
   draft: PatternProject;
+  framingCrop: CropRect | null;
+  imageWidth: number;
+  imageHeight: number;
   previewUrl: string | null;
   error: string | null;
   onFileChange: (files: FileList | null) => void;
   onRotate: () => void;
-  onCropChange: (field: "x" | "y" | "width" | "height", value: string) => void;
+  onFramingCropChange: (crop: CropRect) => void;
+  onApplyFraming: () => void;
   onDetailChange: (value: string) => void;
   onDimensionChange: (
     field: "chartWidth" | "chartHeight",
@@ -26,21 +31,24 @@ type ImageControlsProps = {
 
 export function ImageControls({
   draft,
+  framingCrop,
+  imageWidth,
+  imageHeight,
   previewUrl,
   error,
   onFileChange,
   onRotate,
-  onCropChange,
+  onFramingCropChange,
+  onApplyFraming,
   onDetailChange,
   onDimensionChange,
   onAspectLockChange,
   onMaxColorsChange,
 }: ImageControlsProps) {
-  const crop = draft.crop;
-  const previewStyle = useMemo(
-    () => ({ transform: `rotate(${draft.rotationDegrees}deg)` }),
-    [draft.rotationDegrees],
-  );
+  const framingDirty =
+    !!framingCrop &&
+    !!draft.crop &&
+    !cropsEqual(framingCrop, draft.crop);
 
   return (
     <>
@@ -64,50 +72,38 @@ export function ImageControls({
           </p>
         ) : null}
 
-        {draft.sourceImage && previewUrl ? (
+        {draft.sourceImage && previewUrl && framingCrop ? (
           <div className="image-editor">
-            <div
-              className="crop-preview"
-              style={{
-                aspectRatio:
-                  crop && crop.height > 0
-                    ? `${crop.width} / ${crop.height}`
-                    : undefined,
-              }}
-              data-testid="crop-preview"
-              data-crop={
-                crop ? `${crop.x},${crop.y},${crop.width},${crop.height}` : undefined
-              }
-            >
-              <img
-                src={previewUrl}
-                alt="Source preview"
-                style={{
-                  ...previewStyle,
-                  width:
-                    crop && draft.naturalWidth
-                      ? `${(draft.naturalWidth / crop.width) * 100}%`
-                      : "100%",
-                  maxWidth: "none",
-                  maxHeight: "none",
-                  marginLeft:
-                    crop && crop.width
-                      ? `${(-crop.x / crop.width) * 100}%`
-                      : undefined,
-                  marginTop:
-                    crop && crop.height
-                      ? `${(-crop.y / crop.height) * 100}%`
-                      : undefined,
-                }}
-              />
-            </div>
+            <CropFrame
+              imageUrl={previewUrl}
+              imageWidth={imageWidth}
+              imageHeight={imageHeight}
+              crop={framingCrop}
+              onCropChange={onFramingCropChange}
+            />
             <p className="hint">
-              {draft.naturalWidth} × {draft.naturalHeight} · Rotation:{" "}
-              {draft.rotationDegrees}°
+              Drag to pan · pinch or scroll to zoom · {imageWidth} ×{" "}
+              {imageHeight}
+              {draft.rotationDegrees ? ` · ${draft.rotationDegrees}°` : ""}
             </p>
-            <button type="button" onClick={onRotate}>
-              Rotate 90°
-            </button>
+            <div className="framing-actions">
+              <button type="button" onClick={onRotate}>
+                Rotate 90°
+              </button>
+              <button
+                type="button"
+                className="primary"
+                disabled={!framingDirty}
+                onClick={onApplyFraming}
+              >
+                Apply framing
+              </button>
+            </div>
+            {framingDirty ? (
+              <p className="hint framing-dirty" role="status">
+                Framing changed — apply to update the Colorwork Chart.
+              </p>
+            ) : null}
           </div>
         ) : (
           <p className="muted">
@@ -116,50 +112,6 @@ export function ImageControls({
           </p>
         )}
       </div>
-
-      {draft.sourceImage && crop ? (
-        <div className="card">
-          <h3>Framing</h3>
-          <div className="crop-fields">
-            <label>
-              Crop X
-              <input
-                type="number"
-                min={0}
-                value={crop.x}
-                onChange={(event) => onCropChange("x", event.target.value)}
-              />
-            </label>
-            <label>
-              Crop Y
-              <input
-                type="number"
-                min={0}
-                value={crop.y}
-                onChange={(event) => onCropChange("y", event.target.value)}
-              />
-            </label>
-            <label>
-              Crop width
-              <input
-                type="number"
-                min={1}
-                value={crop.width}
-                onChange={(event) => onCropChange("width", event.target.value)}
-              />
-            </label>
-            <label>
-              Crop height
-              <input
-                type="number"
-                min={1}
-                value={crop.height}
-                onChange={(event) => onCropChange("height", event.target.value)}
-              />
-            </label>
-          </div>
-        </div>
-      ) : null}
 
       {draft.sourceImage ? (
         <div className="card">
@@ -220,7 +172,9 @@ export function ImageControls({
               min={MIN_CHART_COLORS}
               max={MAX_CHART_COLORS}
               value={draft.maxColors}
-              onChange={(event) => onMaxColorsChange(Number(event.target.value))}
+              onChange={(event) =>
+                onMaxColorsChange(Number(event.target.value))
+              }
             />
             <span className="hint">{draft.maxColors} colors</span>
           </div>

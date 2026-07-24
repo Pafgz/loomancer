@@ -57,7 +57,9 @@ const studioProps = {
 };
 
 describe("Studio image controls", () => {
-  it("selects, rotates, crops, and restores a source image after reopen", async () => {
+  it(
+    "selects, rotates, applies framing, and restores after reopen",
+    async () => {
     const user = userEvent.setup();
     const repository = await createLocalRepository(
       `knit-pro-ui-${crypto.randomUUID()}`,
@@ -80,22 +82,39 @@ describe("Studio image controls", () => {
 
     const controls = screen.getByRole("region", { name: /image controls/i });
     const fileInput = within(controls).getByLabelText(/select photo/i);
-    const file = new File([tinyPng], "fox.png", { type: "image/png" });
-    await user.upload(fileInput, file);
+    fireEvent.change(fileInput, {
+      target: { files: [new File([tinyPng], "fox.png", { type: "image/png" })] },
+    });
 
     await waitFor(() => {
       expect(screen.getByAltText(/source preview/i)).toBeInTheDocument();
     });
 
     await user.click(screen.getByRole("button", { name: /rotate 90°/i }));
-    fireEvent.change(screen.getByLabelText(/crop width/i), {
-      target: { value: "120" },
-    });
 
     await waitFor(async () => {
       const saved = await repository.getPatternProject(project.id);
-      expect(saved?.crop?.width).toBe(120);
       expect(saved?.rotationDegrees).toBe(90);
+      expect(saved?.crop?.width).toBeGreaterThan(0);
+    });
+
+    const cropBeforeZoom = screen.getByTestId("crop-preview").getAttribute("data-crop");
+    const framing = screen.getByRole("region", { name: /image controls/i });
+    await user.click(within(framing).getByRole("button", { name: /zoom in/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId("crop-preview").getAttribute("data-crop")).not.toBe(
+        cropBeforeZoom,
+      );
+    });
+
+    await user.click(within(framing).getByRole("button", { name: /apply framing/i }));
+
+    await waitFor(async () => {
+      const saved = await repository.getPatternProject(project.id);
+      expect(saved?.crop).toBeTruthy();
+      expect(
+        `${saved?.crop?.x},${saved?.crop?.y},${saved?.crop?.width},${saved?.crop?.height}`,
+      ).toBe(screen.getByTestId("crop-preview").getAttribute("data-crop"));
     });
 
     unmount();
@@ -107,7 +126,39 @@ describe("Studio image controls", () => {
         onProjectChange={onProjectChange}
       />,
     );
-    expect(await screen.findByLabelText(/crop width/i)).toHaveValue(120);
+    expect(await screen.findByAltText(/source preview/i)).toBeInTheDocument();
+    expect(screen.getByTestId("crop-preview")).toHaveAttribute("data-crop");
+  },
+    15_000,
+  );
+
+  it("does not persist framing while dragging until Apply is pressed", async () => {
+    const user = userEvent.setup();
+    const onProjectChange = vi.fn(async () => undefined);
+    const project = createEmptyPatternProject("Mountain fox");
+
+    render(
+      <Studio
+        {...studioProps}
+        project={project}
+        onProjectChange={onProjectChange}
+      />,
+    );
+
+    await user.upload(
+      screen.getByLabelText(/select photo/i),
+      new File([tinyPng], "fox.png", { type: "image/png" }),
+    );
+    await waitFor(() => expect(screen.getByAltText(/source preview/i)).toBeInTheDocument());
+
+    const callsAfterUpload = onProjectChange.mock.calls.length;
+    const framing = screen.getByRole("region", { name: /image controls/i });
+    await user.click(within(framing).getByRole("button", { name: /zoom in/i }));
+
+    expect(onProjectChange.mock.calls.length).toBe(callsAfterUpload);
+    expect(
+      within(framing).getByRole("button", { name: /apply framing/i }),
+    ).toBeEnabled();
   });
 
   it("shows guidance when an unsupported image is selected", async () => {
