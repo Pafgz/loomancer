@@ -4,12 +4,18 @@
 
 **Blocked by:** 03 — Generate an editable Colorwork Chart
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Global replace, merge, and add-color operations update cells, symbols, and stitch counts immediately
-- [ ] Undo/redo covers palette edits
-- [ ] Regenerating over manual edits requires confirmation
-- [ ] Yarn Inventory supports required name/display color and optional brand/line/code/notes/quantity
-- [ ] Color Match suggestions show ranked owned yarns and apply only after confirmation
-- [ ] Hard-to-distinguish palette pairs warn and offer merge without auto-merging
-- [ ] Quantity remains informational and never asserts sufficiency
+- [x] Global replace, merge, and add-color operations update cells, symbols, and stitch counts immediately
+- [x] Undo/redo covers palette edits
+- [x] Regenerating over manual edits requires confirmation
+- [x] Yarn Inventory supports required name/display color and optional brand/line/code/notes/quantity
+- [x] Color Match suggestions show ranked owned yarns and apply only after confirmation
+- [x] Hard-to-distinguish palette pairs warn and offer merge without auto-merging
+- [x] Quantity remains informational and never asserts sufficiency
+
+## Notes
+
+- Palette ops: `src/chart/palette-edits.ts`
+- Color key + inventory UI: `src/ui/ColorKeyPanel.tsx`
+- Undo/redo is local to the Studio session for palette chart snapshots

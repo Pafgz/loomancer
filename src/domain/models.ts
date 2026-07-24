@@ -15,6 +15,7 @@ export type ChartPaletteEntry = {
   hex: string;
   symbol: string;
   stitchCount: number;
+  yarnLabel?: string;
 };
 
 export type ColorworkChart = {
@@ -43,6 +44,7 @@ export type PatternProject = {
   aspectLocked: boolean;
   maxColors: number;
   chart: ColorworkChart | null;
+  paletteManuallyEdited: boolean;
 };
 
 export type YarnColor = {
@@ -73,6 +75,7 @@ export function createEmptyPatternProject(name: string): PatternProject {
     aspectLocked: true,
     maxColors: 6,
     chart: null,
+    paletteManuallyEdited: false,
   };
 }
 

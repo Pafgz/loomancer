@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import {
-  createWorkerChartGenerator,
-} from "./chart/chart-generator";
+import { createWorkerChartGenerator } from "./chart/chart-generator";
 import {
   createEmptyPatternProject,
   type PatternProject,
+  type YarnColor,
 } from "./domain/models";
 import type { LocalRepository } from "./repository/local-repository";
 import { Studio } from "./ui/Studio";
@@ -17,6 +16,7 @@ const generateChart = createWorkerChartGenerator();
 
 export function App({ repository }: AppProps) {
   const [projects, setProjects] = useState<PatternProject[]>([]);
+  const [inventory, setInventory] = useState<YarnColor[]>([]);
   const [activeProject, setActiveProject] = useState<PatternProject | null>(
     null,
   );
@@ -25,9 +25,13 @@ export function App({ repository }: AppProps) {
   useEffect(() => {
     let cancelled = false;
 
-    void repository.listPatternProjects().then((listed) => {
+    void Promise.all([
+      repository.listPatternProjects(),
+      repository.listYarnColors(),
+    ]).then(([listedProjects, listedInventory]) => {
       if (!cancelled) {
-        setProjects(listed);
+        setProjects(listedProjects);
+        setInventory(listedInventory);
         setLoading(false);
       }
     });
@@ -54,12 +58,21 @@ export function App({ repository }: AppProps) {
     await refreshProjects();
   }
 
+  async function handleInventoryChange(next: YarnColor[]) {
+    for (const yarn of next) {
+      await repository.saveYarnColor(yarn);
+    }
+    setInventory(await repository.listYarnColors());
+  }
+
   if (activeProject) {
     return (
       <Studio
         project={activeProject}
+        inventory={inventory}
         onBack={() => setActiveProject(null)}
         onProjectChange={handleProjectChange}
+        onInventoryChange={handleInventoryChange}
         generateChart={generateChart}
       />
     );

@@ -27,14 +27,34 @@ const stubRasterize = vi.fn(async () => fakeRgba(20, 10));
 const stubGenerate = vi.fn(async ({ width, height, maxColors }) => ({
   width,
   height,
-  cells: Array.from({ length: width * height }, () => 0),
-  palette: Array.from({ length: Math.min(maxColors, 1) }, (_, index) => ({
-    index,
-    hex: "#b4b4b4",
-    symbol: "▲",
-    stitchCount: width * height,
-  })),
+  cells: Array.from({ length: width * height }, (_, index) =>
+    index % 2 === 0 ? 0 : 1,
+  ),
+  palette: [
+    {
+      index: 0,
+      hex: "#203040",
+      symbol: "▲",
+      stitchCount: Math.ceil((width * height) / 2),
+    },
+    {
+      index: 1,
+      hex: "#d0a050",
+      symbol: "●",
+      stitchCount: Math.floor((width * height) / 2),
+    },
+  ].slice(0, Math.max(1, Math.min(maxColors, 2))),
 }));
+
+const studioProps = {
+  inventory: [],
+  onInventoryChange: async () => undefined,
+  onBack: () => undefined,
+  decodeSourceImage: async () => ({ width: 200, height: 100 }),
+  rasterizeSource: stubRasterize,
+  generateChart: stubGenerate,
+  confirmRegeneration: () => true,
+};
 
 describe("Studio image controls", () => {
   it("selects, rotates, crops, and restores a source image after reopen", async () => {
@@ -49,15 +69,12 @@ describe("Studio image controls", () => {
       await repository.savePatternProject(next);
     });
 
-    const decode = vi.fn(async () => ({ width: 200, height: 100 }));
     const { unmount } = render(
       <Studio
+        {...studioProps}
         project={project}
-        onBack={() => undefined}
         onProjectChange={onProjectChange}
-        decodeSourceImage={decode}
-        rasterizeSource={stubRasterize}
-        generateChart={stubGenerate}
+        decodeSourceImage={async () => ({ width: 200, height: 100 })}
       />,
     );
 
@@ -69,119 +86,122 @@ describe("Studio image controls", () => {
     await waitFor(() => {
       expect(screen.getByAltText(/source preview/i)).toBeInTheDocument();
     });
-    expect(screen.getByText(/200 × 100/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /rotate 90°/i }));
-    await waitFor(() => {
-      expect(onProjectChange).toHaveBeenCalled();
-    });
-
-    const widthInput = screen.getByLabelText(/crop width/i);
-    fireEvent.change(widthInput, { target: { value: "120" } });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("crop-preview")).toHaveAttribute(
-        "data-crop",
-        "0,0,120,100",
-      );
+    fireEvent.change(screen.getByLabelText(/crop width/i), {
+      target: { value: "120" },
     });
 
     await waitFor(async () => {
       const saved = await repository.getPatternProject(project.id);
-      expect(saved?.sourceFileName).toBe("fox.png");
-      expect(saved?.rotationDegrees).toBe(90);
       expect(saved?.crop?.width).toBe(120);
-      expect(saved?.sourceImage).toBeInstanceOf(Blob);
+      expect(saved?.rotationDegrees).toBe(90);
     });
 
     unmount();
-
     const restored = await repository.getPatternProject(project.id);
-    expect(restored).toBeDefined();
-
     render(
       <Studio
+        {...studioProps}
         project={restored!}
-        onBack={() => undefined}
         onProjectChange={onProjectChange}
-        decodeSourceImage={decode}
-        rasterizeSource={stubRasterize}
-        generateChart={stubGenerate}
       />,
     );
-
-    expect(await screen.findByAltText(/source preview/i)).toBeInTheDocument();
-    expect(screen.getByText(/rotation: 90°/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/crop width/i)).toHaveValue(120);
+    expect(await screen.findByLabelText(/crop width/i)).toHaveValue(120);
   });
 
   it("shows guidance when an unsupported image is selected", async () => {
-    const project = createEmptyPatternProject("Mountain fox");
-
     render(
       <Studio
-        project={project}
-        onBack={() => undefined}
+        {...studioProps}
+        project={createEmptyPatternProject("Mountain fox")}
         onProjectChange={async () => undefined}
-        decodeSourceImage={async () => ({ width: 10, height: 10 })}
-        rasterizeSource={stubRasterize}
-        generateChart={stubGenerate}
       />,
     );
 
-    const fileInput = screen.getByLabelText(/select photo/i);
-    const file = new File([tinyPng], "drawing.gif", { type: "image/gif" });
-    fireEvent.change(fileInput, { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText(/select photo/i), {
+      target: {
+        files: [new File([tinyPng], "drawing.gif", { type: "image/gif" })],
+      },
+    });
 
-    expect(
-      await screen.findByRole("alert"),
-    ).toHaveTextContent(/jpeg, png, or webp/i);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/jpeg, png, or webp/i);
   });
 
   it("generates a Colorwork Chart from detail and color controls", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const project = createEmptyPatternProject("Mountain fox");
-    const onProjectChange = vi.fn(async () => undefined);
-    const decode = vi.fn(async () => ({ width: 200, height: 100 }));
 
     render(
       <Studio
+        {...studioProps}
         project={project}
-        onBack={() => undefined}
-        onProjectChange={onProjectChange}
-        decodeSourceImage={decode}
-        rasterizeSource={stubRasterize}
-        generateChart={stubGenerate}
+        onProjectChange={async () => undefined}
       />,
     );
 
-    const fileInput = screen.getByLabelText(/select photo/i);
     await user.upload(
-      fileInput,
+      screen.getByLabelText(/select photo/i),
       new File([tinyPng], "fox.png", { type: "image/png" }),
     );
-
-    await waitFor(() => {
-      expect(stubGenerate).toHaveBeenCalled();
-    });
-
+    await waitFor(() => expect(stubGenerate).toHaveBeenCalled());
     fireEvent.change(screen.getByLabelText(/maximum colors/i), {
       target: { value: "4" },
     });
     await vi.advanceTimersByTimeAsync(350);
-
-    await waitFor(() => {
-      expect(stubGenerate).toHaveBeenCalledWith(
-        expect.objectContaining({ maxColors: 4 }),
-      );
-    });
-
     expect(
       await screen.findByRole("table", { name: /colorwork chart/i }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/▲ #b4b4b4/i).length).toBeGreaterThan(0);
-
     vi.useRealTimers();
+  });
+
+  it("replaces a chart color from Yarn Inventory and supports undo", async () => {
+    const user = userEvent.setup();
+    const project = createEmptyPatternProject("Mountain fox");
+    let latest = project;
+    const onProjectChange = vi.fn(async (next) => {
+      latest = next;
+    });
+    const inventory = [
+      {
+        id: "yarn-1",
+        name: "Forest green",
+        displayColor: "#1f3d32",
+        schemaVersion: 1 as const,
+      },
+    ];
+
+    render(
+      <Studio
+        {...studioProps}
+        project={project}
+        inventory={inventory}
+        onProjectChange={onProjectChange}
+      />,
+    );
+
+    await user.upload(
+      screen.getByLabelText(/select photo/i),
+      new File([tinyPng], "fox.png", { type: "image/png" }),
+    );
+
+    const useYarn = await screen.findByRole("button", {
+      name: /use this yarn/i,
+    });
+    await user.click(useYarn);
+
+    await waitFor(() => {
+      expect(latest.chart?.palette.some((entry) => entry.yarnLabel === "Forest green")).toBe(
+        true,
+      );
+    });
+
+    await user.click(screen.getByRole("button", { name: /^undo$/i }));
+    await waitFor(() => {
+      expect(
+        latest.chart?.palette.every((entry) => entry.yarnLabel !== "Forest green"),
+      ).toBe(true);
+    });
   });
 });

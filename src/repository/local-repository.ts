@@ -76,6 +76,7 @@ function fromStored(stored: StoredPatternProject): PatternProject {
     aspectLocked: rest.aspectLocked ?? true,
     maxColors: rest.maxColors ?? 6,
     chart: rest.chart ?? null,
+    paletteManuallyEdited: rest.paletteManuallyEdited ?? false,
   };
 
   if (!sourceImageBytes) {

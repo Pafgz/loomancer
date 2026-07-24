@@ -18,6 +18,7 @@ import {
   fullImageCrop,
   rotateClockwise,
   type PatternProject,
+  type YarnColor,
 } from "../domain/models";
 import {
   defaultDecodeSourceImage,
@@ -25,31 +26,41 @@ import {
   type SourceImageDecoder,
 } from "../image/validate-source-image";
 import { ChartView } from "./ChartView";
+import { ColorKeyPanel } from "./ColorKeyPanel";
 
 type StudioProps = {
   project: PatternProject;
+  inventory: YarnColor[];
   onBack: () => void;
   onProjectChange: (project: PatternProject) => Promise<void>;
+  onInventoryChange: (inventory: YarnColor[]) => Promise<void>;
   decodeSourceImage?: SourceImageDecoder;
   generateChart?: ChartGenerator;
   rasterizeSource?: typeof rasterizeSourceToRgba;
+  confirmRegeneration?: (message: string) => boolean;
 };
 
 const GENERATE_DEBOUNCE_MS = 300;
 
 export function Studio({
   project,
+  inventory,
   onBack,
   onProjectChange,
+  onInventoryChange,
   decodeSourceImage = defaultDecodeSourceImage,
   generateChart = createInlineChartGenerator(),
   rasterizeSource = rasterizeSourceToRgba,
+  confirmRegeneration = (message) => window.confirm(message),
 }: StudioProps) {
   const [draft, setDraft] = useState(project);
   const draftRef = useRef(project);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [undoStack, setUndoStack] = useState<PatternProject["chart"][]>([]);
+  const [redoStack, setRedoStack] = useState<PatternProject["chart"][]>([]);
+  const [holdGeneration, setHoldGeneration] = useState(false);
   const generationIdRef = useRef(0);
 
   useEffect(() => {
@@ -70,6 +81,7 @@ export function Studio({
 
   useEffect(() => {
     if (
+      holdGeneration ||
       !draft.sourceImage ||
       !draft.crop ||
       !draft.naturalWidth ||
@@ -86,6 +98,7 @@ export function Studio({
     // Intentionally regenerate when generation inputs change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    holdGeneration,
     draft.sourceImage,
     draft.crop,
     draft.rotationDegrees,
@@ -120,6 +133,16 @@ export function Studio({
       return;
     }
 
+    if (current.paletteManuallyEdited) {
+      const confirmed = confirmRegeneration(
+        "Regenerating will replace your palette edits. Continue?",
+      );
+      if (!confirmed) {
+        setHoldGeneration(true);
+        return;
+      }
+    }
+
     const generationId = generationIdRef.current + 1;
     generationIdRef.current = generationId;
     setIsGenerating(true);
@@ -147,7 +170,10 @@ export function Studio({
       await persist((latest) => ({
         ...latest,
         chart,
+        paletteManuallyEdited: false,
       }));
+      setUndoStack([]);
+      setRedoStack([]);
     } catch (generationError) {
       if (generationId !== generationIdRef.current) {
         return;
@@ -164,6 +190,47 @@ export function Studio({
     }
   }
 
+  async function applyPaletteChart(nextChart: NonNullable<PatternProject["chart"]>) {
+    setUndoStack((stack) =>
+      draft.chart ? [...stack, draft.chart].slice(-30) : stack,
+    );
+    setRedoStack([]);
+    setHoldGeneration(true);
+    await persist((current) => ({
+      ...current,
+      chart: nextChart,
+      paletteManuallyEdited: true,
+    }));
+  }
+
+  async function handleUndo() {
+    const previous = undoStack.at(-1);
+    if (!previous || !draft.chart) {
+      return;
+    }
+    setUndoStack((stack) => stack.slice(0, -1));
+    setRedoStack((stack) => [...stack, draft.chart]);
+    await persist((current) => ({
+      ...current,
+      chart: previous,
+      paletteManuallyEdited: true,
+    }));
+  }
+
+  async function handleRedo() {
+    const next = redoStack.at(-1);
+    if (!next || !draft.chart) {
+      return;
+    }
+    setRedoStack((stack) => stack.slice(0, -1));
+    setUndoStack((stack) => [...stack, draft.chart]);
+    await persist((current) => ({
+      ...current,
+      chart: next,
+      paletteManuallyEdited: true,
+    }));
+  }
+
   async function handleFileChange(fileList: FileList | null) {
     const file = fileList?.[0];
     if (!file) {
@@ -177,6 +244,7 @@ export function Studio({
     }
 
     setError(null);
+    setHoldGeneration(false);
     const aspect = validation.width / Math.max(1, validation.height);
     const grid = gridSizeFromDetail(DEFAULT_DETAIL, aspect);
     await persist((current) => ({
@@ -198,6 +266,7 @@ export function Studio({
   }
 
   async function handleRotate() {
+    setHoldGeneration(false);
     await persist((current) => {
       if (!current.sourceImage) {
         return current;
@@ -238,6 +307,7 @@ export function Studio({
         crop: nextCrop,
       };
     });
+    setHoldGeneration(false);
   }
 
   async function handleDetailChange(rawValue: string) {
@@ -245,6 +315,7 @@ export function Studio({
     if (!Number.isFinite(detail) || !draft.crop) {
       return;
     }
+    setHoldGeneration(false);
     const aspect = draft.crop.width / Math.max(1, draft.crop.height);
     const grid = gridSizeFromDetail(detail, aspect);
     await persist((current) => ({
@@ -264,6 +335,7 @@ export function Studio({
       return;
     }
     const clamped = Math.min(MAX_CHART_DIMENSION, Math.max(1, Math.round(value)));
+    setHoldGeneration(false);
     await persist((current) => {
       if (!current.aspectLocked || !current.crop) {
         return {
@@ -313,10 +385,18 @@ export function Studio({
           <p className="muted">Local Pattern Project</p>
         </div>
         <div className="actions">
-          <button type="button" disabled>
+          <button
+            type="button"
+            onClick={() => void handleUndo()}
+            disabled={undoStack.length === 0}
+          >
             Undo
           </button>
-          <button type="button" disabled>
+          <button
+            type="button"
+            onClick={() => void handleRedo()}
+            disabled={redoStack.length === 0}
+          >
             Redo
           </button>
           <button type="button" className="primary" disabled>
@@ -508,12 +588,13 @@ export function Studio({
                   min={MIN_CHART_COLORS}
                   max={MAX_CHART_COLORS}
                   value={draft.maxColors}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    setHoldGeneration(false);
                     void persist((current) => ({
                       ...current,
                       maxColors: Number(event.target.value),
-                    }))
-                  }
+                    }));
+                  }}
                 />
                 <small>{draft.maxColors} colors</small>
               </label>
@@ -542,20 +623,16 @@ export function Studio({
         <section className="panel" aria-label="Color key">
           <h2>Color key</h2>
           {draft.chart ? (
-            <ol className="chart-key">
-              {draft.chart.palette.map((entry) => (
-                <li key={entry.index}>
-                  <span
-                    className="swatch"
-                    style={{ background: entry.hex }}
-                    aria-hidden="true"
-                  />
-                  <span>
-                    {entry.symbol} {entry.hex} · {entry.stitchCount} stitches
-                  </span>
-                </li>
-              ))}
-            </ol>
+            <ColorKeyPanel
+              chart={draft.chart}
+              inventory={inventory}
+              onChartChange={(chart) => {
+                void applyPaletteChart(chart);
+              }}
+              onInventoryChange={(next) => {
+                void onInventoryChange(next);
+              }}
+            />
           ) : (
             <p className="muted">
               Chart colors and Yarn Inventory matches will appear here.

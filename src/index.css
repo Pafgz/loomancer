@@ -246,11 +246,60 @@ button.ghost {
   align-items: center;
 }
 
-.swatch {
-  width: 1.5rem;
-  aspect-ratio: 1;
-  border: 1px solid #555;
-  border-radius: 0.2rem;
+.color-key-panel {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.color-row {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr;
+  gap: var(--sp-2);
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+}
+
+.color-row.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.palette-actions,
+.yarn-form,
+.similar-warning {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.palette-actions h3,
+.yarn-form h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.match-list,
+.inventory-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.match-list li,
+.inventory-list li {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr auto;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.similar-warning {
+  padding: var(--sp-3);
+  border: 1px solid #a75d46;
+  background: #f8e8e2;
 }
 
 .visually-hidden {
