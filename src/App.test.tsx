@@ -30,7 +30,7 @@ describe("Studio shell", () => {
     expect(screen.getByRole("region", { name: /color key/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^undo$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^redo$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /export pattern/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /save knit-ready pattern/i })).toBeInTheDocument();
 
     const projects = await repository.listPatternProjects();
     expect(projects).toHaveLength(1);

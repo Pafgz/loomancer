@@ -24,7 +24,7 @@ export function Studio({ project, onBack }: StudioProps) {
             Redo
           </button>
           <button type="button" className="primary" disabled>
-            Export pattern
+            Save Knit-ready Pattern
           </button>
         </div>
       </header>
