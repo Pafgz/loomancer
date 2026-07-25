@@ -181,6 +181,8 @@ export function Studio({
         naturalHeight: current.naturalHeight,
         rotationDegrees: current.rotationDegrees,
         crop: current.crop,
+        targetWidth: current.chartWidth,
+        targetHeight: current.chartHeight,
       });
       const chart = await generateChart({
         image,
@@ -474,7 +476,11 @@ export function Studio({
           >
             Redo
           </button>
-          <ExportMenu chart={draft.chart} projectName={draft.name} />
+          <ExportMenu
+            chart={draft.chart}
+            projectName={draft.name}
+            showSymbols={draft.showChartSymbols}
+          />
         </div>
       </header>
 
@@ -540,7 +546,17 @@ export function Studio({
         >
           <h2 className="visually-hidden">Colorwork Chart</h2>
           {draft.chart ? (
-            <ChartView chart={draft.chart} isGenerating={isGenerating} />
+            <ChartView
+              chart={draft.chart}
+              isGenerating={isGenerating}
+              showSymbols={draft.showChartSymbols}
+              onShowSymbolsChange={(show) => {
+                void persist((current) => ({
+                  ...current,
+                  showChartSymbols: show,
+                }));
+              }}
+            />
           ) : (
             <p className="muted">
               {isGenerating

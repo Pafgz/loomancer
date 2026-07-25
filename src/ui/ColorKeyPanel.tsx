@@ -79,13 +79,19 @@ export function ColorKeyPanel({
                 onClick={() => setSelectedIndex(entry.index)}
               >
                 <span
-                  className="swatch"
+                  className="swatch color-row-swatch"
                   style={{ background: entry.hex }}
                   aria-hidden="true"
-                />
-                <span>
-                  {entry.symbol} {entry.yarnLabel ?? entry.hex} ·{" "}
-                  {entry.stitchCount} stitches
+                >
+                  <span className="color-row-symbol">{entry.symbol}</span>
+                </span>
+                <span className="color-row-meta">
+                  <span className="color-row-name">
+                    {entry.yarnLabel ?? entry.hex}
+                  </span>
+                  <span className="color-row-count">
+                    {entry.stitchCount} stitches
+                  </span>
                 </span>
               </button>
             </li>

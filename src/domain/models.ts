@@ -1,4 +1,4 @@
-export const PATTERN_PROJECT_SCHEMA_VERSION = 3;
+export const PATTERN_PROJECT_SCHEMA_VERSION = 4;
 export const YARN_INVENTORY_SCHEMA_VERSION = 1;
 
 export type RotationDegrees = 0 | 90 | 180 | 270;
@@ -45,6 +45,8 @@ export type PatternProject = {
   maxColors: number;
   chart: ColorworkChart | null;
   paletteManuallyEdited: boolean;
+  /** When true, stitch cells show palette symbols in Studio and exports. */
+  showChartSymbols: boolean;
 };
 
 export type YarnColor = {
@@ -76,6 +78,7 @@ export function createEmptyPatternProject(name: string): PatternProject {
     maxColors: 6,
     chart: null,
     paletteManuallyEdited: false,
+    showChartSymbols: true,
   };
 }
 

@@ -145,8 +145,9 @@ function shouldLabel(oneBased: number, total: number): boolean {
  */
 export async function buildChartPdfBytes(
   chart: ColorworkChart,
-  options: { title?: string } = {},
+  options: { title?: string; showSymbols?: boolean } = {},
 ): Promise<Uint8Array> {
+  const showSymbols = options.showSymbols ?? true;
   const cell = PDF_CELL_PT;
   const gutter = cell * 1.8;
   const margin = 36;
@@ -226,7 +227,7 @@ export async function buildChartPdfBytes(
         borderColor: line,
         borderWidth: 0.5,
       });
-      if (entry?.symbol) {
+      if (showSymbols && entry?.symbol) {
         drawPdfSymbol(
           page,
           entry.symbol,
@@ -260,14 +261,16 @@ export async function buildChartPdfBytes(
       borderColor: line,
       borderWidth: 0.5,
     });
-    drawPdfSymbol(
-      page,
-      keyRow.symbol,
-      margin + cell / 2,
-      swatchCenterY,
-      cell * 0.55,
-      symbolInkFor(keyRow.hex),
-    );
+    if (showSymbols) {
+      drawPdfSymbol(
+        page,
+        keyRow.symbol,
+        margin + cell / 2,
+        swatchCenterY,
+        cell * 0.55,
+        symbolInkFor(keyRow.hex),
+      );
+    }
     page.drawText(
       sanitizeWinAnsi(`${keyRow.label} · ${keyRow.stitchCount} stitches`),
       {
@@ -454,7 +457,9 @@ export function drawChartToCanvas(
   chart: ColorworkChart,
   layout: PngLayout,
   title: string,
+  options: { showSymbols?: boolean } = {},
 ): void {
+  const showSymbols = options.showSymbols ?? true;
   const { cellSize, gutter, padding } = layout;
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, layout.width, layout.height);
@@ -496,7 +501,7 @@ export function drawChartToCanvas(
       ctx.strokeStyle = "rgba(0,0,0,0.18)";
       ctx.lineWidth = 1;
       ctx.strokeRect(x + 0.5, y + 0.5, cellSize, cellSize);
-      if (entry?.symbol) {
+      if (showSymbols && entry?.symbol) {
         ctx.fillStyle = symbolInkForCanvas(entry.hex);
         ctx.fillText(entry.symbol, x + cellSize / 2, y + cellSize / 2);
       }
@@ -516,9 +521,15 @@ export function drawChartToCanvas(
     ctx.fillRect(padding, keyY, cellSize, cellSize);
     ctx.strokeStyle = "rgba(0,0,0,0.18)";
     ctx.strokeRect(padding + 0.5, keyY + 0.5, cellSize, cellSize);
+    if (showSymbols) {
+      ctx.fillStyle = symbolInkForCanvas(keyRow.hex);
+      ctx.textAlign = "center";
+      ctx.fillText(keyRow.symbol, padding + cellSize / 2, keyY + cellSize / 2);
+      ctx.textAlign = "left";
+    }
     ctx.fillStyle = "#1a1d23";
     ctx.fillText(
-      `${keyRow.symbol}  ${keyRow.label} · ${keyRow.stitchCount} stitches`,
+      `${keyRow.label} · ${keyRow.stitchCount} stitches`,
       padding + cellSize + 8,
       keyY + cellSize / 2,
     );
@@ -531,7 +542,7 @@ export type PngExport = { blob: Blob; layout: PngLayout };
 /** Render the chart to a PNG Blob from canonical data (not a UI screenshot). */
 export async function renderChartPngBlob(
   chart: ColorworkChart,
-  options: { cellSize?: number; title?: string } = {},
+  options: { cellSize?: number; title?: string; showSymbols?: boolean } = {},
 ): Promise<PngExport> {
   const layout = computePngLayout(chart, options.cellSize ?? DEFAULT_CELL_PX);
   const canvas = document.createElement("canvas");
@@ -541,7 +552,9 @@ export async function renderChartPngBlob(
   if (!ctx) {
     throw new Error("Canvas 2D context is unavailable for PNG export.");
   }
-  drawChartToCanvas(ctx, chart, layout, options.title?.trim() || "Color key");
+  drawChartToCanvas(ctx, chart, layout, options.title?.trim() || "Color key", {
+    showSymbols: options.showSymbols,
+  });
 
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, "image/png"),

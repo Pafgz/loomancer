@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type PointerEvent,
@@ -10,35 +11,38 @@ import {
 } from "react";
 import type { ColorworkChart } from "../domain/models";
 import {
-  CHART_CELL_PX,
-  CHART_GAP_PX,
   chartContentSize,
   clampChartScale,
   computeFitScale,
 } from "./chart-viewport-math";
+import { drawColorworkChart } from "./draw-colorwork-chart";
 
 type ChartViewportProps = {
   chart: ColorworkChart;
+  showSymbols?: boolean;
+  onShowSymbolsChange?: (show: boolean) => void;
   toolbarExtra?: ReactNode;
   fullscreen?: boolean;
   onToggleFullscreen?: () => void;
 };
 
 /**
- * Fit-to-viewport Colorwork Chart with pan + zoom. Fit resets the view;
- * fullscreen is handled by the parent (same controls either way).
+ * Fit-to-viewport Colorwork Chart with pan + zoom.
+ * Cells are painted on a canvas; pan/zoom mutate the transform via refs so
+ * pointer moves do not re-render React.
  */
 export function ChartViewport({
   chart,
+  showSymbols = true,
+  onShowSymbolsChange,
   toolbarExtra,
   fullscreen = false,
   onToggleFullscreen,
 }: ChartViewportProps) {
   const stageRef = useRef<HTMLDivElement>(null);
+  const worldRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
-  const [scale, setScale] = useState(1);
-  const [tx, setTx] = useState(0);
-  const [ty, setTy] = useState(0);
   const [fitted, setFitted] = useState(true);
 
   const content = chartContentSize(chart.width, chart.height);
@@ -52,21 +56,30 @@ export function ChartViewport({
         )
       : 1;
 
-  const scaleRef = useRef(scale);
-  const txRef = useRef(tx);
-  const tyRef = useRef(ty);
+  const scaleRef = useRef(1);
+  const txRef = useRef(0);
+  const tyRef = useRef(0);
   const fitScaleRef = useRef(fitScale);
-  scaleRef.current = scale;
-  txRef.current = tx;
-  tyRef.current = ty;
   fitScaleRef.current = fitScale;
 
-  const fitToViewport = useCallback((nextFit = fitScaleRef.current) => {
-    setScale(nextFit);
-    setTx(0);
-    setTy(0);
-    setFitted(true);
+  const applyTransform = useCallback(() => {
+    const world = worldRef.current;
+    if (!world) {
+      return;
+    }
+    world.style.transform = `translate(${txRef.current}px, ${tyRef.current}px) scale(${scaleRef.current})`;
   }, []);
+
+  const fitToViewport = useCallback(
+    (nextFit = fitScaleRef.current) => {
+      scaleRef.current = nextFit;
+      txRef.current = 0;
+      tyRef.current = 0;
+      applyTransform();
+      setFitted(true);
+    },
+    [applyTransform],
+  );
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -87,7 +100,6 @@ export function ChartViewport({
     return () => observer.disconnect();
   }, [fullscreen]);
 
-  // Re-fit when the chart size changes, or when the viewport changes while fitted.
   useEffect(() => {
     if (viewport.width <= 0 || viewport.height <= 0) {
       return;
@@ -95,16 +107,54 @@ export function ChartViewport({
     if (fitted) {
       fitToViewport(fitScale);
     }
-  }, [chart.width, chart.height, fitScale, fitted, fitToViewport, viewport.width, viewport.height]);
+  }, [
+    chart.width,
+    chart.height,
+    fitScale,
+    fitted,
+    fitToViewport,
+    viewport.width,
+    viewport.height,
+  ]);
 
-  const zoomBy = useCallback((factor: number) => {
-    const next = clampChartScale(
-      scaleRef.current * factor,
-      fitScaleRef.current,
-    );
-    setScale(next);
-    setFitted(Math.abs(next - fitScaleRef.current) < 0.001 && txRef.current === 0 && tyRef.current === 0);
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.max(1, Math.round(content.width * dpr));
+    canvas.height = Math.max(1, Math.round(content.height * dpr));
+    canvas.style.width = `${content.width}px`;
+    canvas.style.height = `${content.height}px`;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      return;
+    }
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawColorworkChart(context, chart, { showSymbols });
+  }, [chart, content.width, content.height, showSymbols]);
+
+  const markUnfitted = useCallback(() => {
+    setFitted((was) => (was ? false : was));
   }, []);
+
+  const zoomBy = useCallback(
+    (factor: number) => {
+      const next = clampChartScale(
+        scaleRef.current * factor,
+        fitScaleRef.current,
+      );
+      scaleRef.current = next;
+      applyTransform();
+      const nowFitted =
+        Math.abs(next - fitScaleRef.current) < 0.001 &&
+        txRef.current === 0 &&
+        tyRef.current === 0;
+      setFitted(nowFitted);
+    },
+    [applyTransform],
+  );
 
   const dragRef = useRef<{
     pointerId: number;
@@ -134,9 +184,10 @@ export function ChartViewport({
     const dy = event.clientY - drag.lastY;
     drag.lastX = event.clientX;
     drag.lastY = event.clientY;
-    setTx((value) => value + dx);
-    setTy((value) => value + dy);
-    setFitted(false);
+    txRef.current += dx;
+    tyRef.current += dy;
+    applyTransform();
+    markUnfitted();
   }
 
   function onPointerUp(event: PointerEvent<HTMLDivElement>) {
@@ -170,12 +221,12 @@ export function ChartViewport({
       return;
     }
     const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-    const next = clampChartScale(
+    scaleRef.current = clampChartScale(
       pinch.scale * (distance / pinch.distance),
       fitScaleRef.current,
     );
-    setScale(next);
-    setFitted(false);
+    applyTransform();
+    markUnfitted();
   }
 
   function onTouchEnd(event: TouchEvent<HTMLDivElement>) {
@@ -219,6 +270,16 @@ export function ChartViewport({
         >
           +
         </button>
+        {onShowSymbolsChange ? (
+          <button
+            type="button"
+            aria-pressed={showSymbols}
+            aria-label={showSymbols ? "Hide chart symbols" : "Show chart symbols"}
+            onClick={() => onShowSymbolsChange(!showSymbols)}
+          >
+            {showSymbols ? "Symbols on" : "Symbols off"}
+          </button>
+        ) : null}
         {onToggleFullscreen ? (
           <button type="button" onClick={onToggleFullscreen}>
             {fullscreen ? "Exit full screen" : "Full screen"}
@@ -240,49 +301,22 @@ export function ChartViewport({
         onWheel={onWheel}
       >
         <div
+          ref={worldRef}
           className="chart-viewport-world"
           style={{
             width: content.width,
             height: content.height,
             marginLeft: -content.width / 2,
             marginTop: -content.height / 2,
-            transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
+            transform: `translate(${txRef.current}px, ${tyRef.current}px) scale(${scaleRef.current})`,
           }}
         >
           <div
-            className="chart-grid"
+            className="chart-grid chart-grid-canvas"
             role="table"
             aria-label={`${chart.width} by ${chart.height} Colorwork Chart`}
-            style={{
-              gridTemplateColumns: `repeat(${chart.width}, ${CHART_CELL_PX}px)`,
-              gap: CHART_GAP_PX,
-              width: content.width,
-              height: content.height,
-            }}
           >
-            {chart.cells.map((cell, index) => {
-              const entry = chart.palette[cell];
-              const row = Math.floor(index / chart.width) + 1;
-              const column = (index % chart.width) + 1;
-              return (
-                <span
-                  key={`${row}-${column}`}
-                  className="chart-cell"
-                  role="cell"
-                  aria-label={`Row ${row}, column ${column}, ${entry?.symbol ?? "?"} ${entry?.hex ?? ""}`}
-                  style={{
-                    backgroundColor: entry?.hex ?? "#ccc",
-                    width: CHART_CELL_PX,
-                    height: CHART_CELL_PX,
-                    fontSize: Math.max(6, Math.round(CHART_CELL_PX * 0.42)),
-                  }}
-                >
-                  <span className="chart-cell-symbol" aria-hidden="true">
-                    {entry?.symbol}
-                  </span>
-                </span>
-              );
-            })}
+            <canvas ref={canvasRef} aria-hidden="true" />
           </div>
         </div>
       </div>

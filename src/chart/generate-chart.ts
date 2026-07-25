@@ -24,6 +24,20 @@ export function downsampleToGrid(
   width: number,
   height: number,
 ): Rgb[] {
+  // Already at stitch resolution (e.g. after targeted rasterize) — sample 1:1.
+  if (image.width === width && image.height === height) {
+    const samples: Rgb[] = new Array(width * height);
+    for (let i = 0; i < samples.length; i += 1) {
+      const offset = i * 4;
+      samples[i] = [
+        image.data[offset] ?? 0,
+        image.data[offset + 1] ?? 0,
+        image.data[offset + 2] ?? 0,
+      ];
+    }
+    return samples;
+  }
+
   const samples: Rgb[] = [];
   for (let y = 0; y < height; y += 1) {
     const y0 = Math.floor((y * image.height) / height);
@@ -138,7 +152,7 @@ function medianCut(pixels: Rgb[], maxColors: number): Rgb[] {
   return buckets.map((bucket) => averageColor(bucket));
 }
 
-function nearestPaletteIndex(sample: Rgb, palette: Rgb[]): number {
+function nearestPaletteIndex(sample: Rgb, paletteColors: Color[]): number {
   const sampleColor = new Color("srgb", [
     sample[0] / 255,
     sample[1] / 255,
@@ -146,13 +160,11 @@ function nearestPaletteIndex(sample: Rgb, palette: Rgb[]): number {
   ]);
   let bestIndex = 0;
   let bestDistance = Number.POSITIVE_INFINITY;
-  for (let i = 0; i < palette.length; i += 1) {
-    const candidate = palette[i] ?? [0, 0, 0];
-    const candidateColor = new Color("srgb", [
-      candidate[0] / 255,
-      candidate[1] / 255,
-      candidate[2] / 255,
-    ]);
+  for (let i = 0; i < paletteColors.length; i += 1) {
+    const candidateColor = paletteColors[i];
+    if (!candidateColor) {
+      continue;
+    }
     const distance = sampleColor.deltaE(candidateColor, "2000");
     if (distance < bestDistance) {
       bestDistance = distance;
@@ -160,6 +172,13 @@ function nearestPaletteIndex(sample: Rgb, palette: Rgb[]): number {
     }
   }
   return bestIndex;
+}
+
+function paletteColorsFromRgb(palette: Rgb[]): Color[] {
+  return palette.map(
+    (rgb) =>
+      new Color("srgb", [rgb[0] / 255, rgb[1] / 255, rgb[2] / 255]),
+  );
 }
 
 export function generateColorworkChart(
@@ -170,7 +189,10 @@ export function generateColorworkChart(
   const maxColors = clampMaxColors(input.maxColors);
   const samples = downsampleToGrid(input.image, width, height);
   const paletteRgb = medianCut(samples, maxColors);
-  const cells = samples.map((sample) => nearestPaletteIndex(sample, paletteRgb));
+  const paletteColors = paletteColorsFromRgb(paletteRgb);
+  const cells = samples.map((sample) =>
+    nearestPaletteIndex(sample, paletteColors),
+  );
   const stitchCounts = new Array(paletteRgb.length).fill(0) as number[];
   for (const cell of cells) {
     stitchCounts[cell] = (stitchCounts[cell] ?? 0) + 1;
