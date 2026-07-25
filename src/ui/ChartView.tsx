@@ -5,9 +5,16 @@ import { ChartViewport } from "./ChartViewport";
 type ChartViewProps = {
   chart: ColorworkChart;
   isGenerating?: boolean;
+  showSymbols?: boolean;
+  onShowSymbolsChange?: (show: boolean) => void;
 };
 
-export function ChartView({ chart, isGenerating = false }: ChartViewProps) {
+export function ChartView({
+  chart,
+  isGenerating = false,
+  showSymbols = true,
+  onShowSymbolsChange,
+}: ChartViewProps) {
   const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
@@ -37,6 +44,8 @@ export function ChartView({ chart, isGenerating = false }: ChartViewProps) {
       ) : null}
       <ChartViewport
         chart={chart}
+        showSymbols={showSymbols}
+        onShowSymbolsChange={onShowSymbolsChange}
         fullscreen={fullscreen}
         onToggleFullscreen={() => setFullscreen((value) => !value)}
       />

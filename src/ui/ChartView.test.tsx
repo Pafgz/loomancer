@@ -14,16 +14,42 @@ const chart = {
 };
 
 describe("ChartView", () => {
-  it("shows fit, zoom, and full screen controls around the chart", async () => {
+  it("shows fit, zoom, symbols, and full screen controls around the chart", async () => {
     const user = userEvent.setup();
-    render(<ChartView chart={chart} />);
+    let showSymbols = true;
+    const { rerender } = render(
+      <ChartView
+        chart={chart}
+        showSymbols={showSymbols}
+        onShowSymbolsChange={(next) => {
+          showSymbols = next;
+        }}
+      />,
+    );
 
     expect(
       screen.getByRole("table", { name: /4 by 3 colorwork chart/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^fit$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /zoom in/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /hide chart symbols/i }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /full screen/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /hide chart symbols/i }));
+    rerender(
+      <ChartView
+        chart={chart}
+        showSymbols={showSymbols}
+        onShowSymbolsChange={(next) => {
+          showSymbols = next;
+        }}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: /show chart symbols/i }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /full screen/i }));
     expect(

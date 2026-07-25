@@ -78,6 +78,7 @@ function fromStored(stored: StoredPatternProject): PatternProject {
     maxColors: rest.maxColors ?? 6,
     chart: rest.chart ?? null,
     paletteManuallyEdited: rest.paletteManuallyEdited ?? false,
+    showChartSymbols: rest.showChartSymbols ?? true,
   };
 
   if (!sourceImageBytes) {

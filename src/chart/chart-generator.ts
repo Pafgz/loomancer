@@ -35,6 +35,7 @@ export function createWorkerChartGenerator(): ChartGenerator {
       };
       worker.addEventListener("message", handleMessage);
       const request: ChartWorkerRequest = { id, input };
-      worker.postMessage(request);
+      // Transfer the pixel buffer so the worker does not structured-clone it.
+      worker.postMessage(request, [input.image.data.buffer]);
     });
 }

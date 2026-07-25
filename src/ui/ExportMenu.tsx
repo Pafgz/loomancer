@@ -16,6 +16,7 @@ import {
 type ExportMenuProps = {
   chart: ColorworkChart | null;
   projectName: string;
+  showSymbols?: boolean;
 };
 
 type Method = "download" | "share" | "save";
@@ -36,7 +37,11 @@ const RESULT_MESSAGE: Record<DeliveryResult, string> = {
   cancelled: "Cancelled.",
 };
 
-export function ExportMenu({ chart, projectName }: ExportMenuProps) {
+export function ExportMenu({
+  chart,
+  projectName,
+  showSymbols = true,
+}: ExportMenuProps) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -56,12 +61,18 @@ export function ExportMenu({ chart, projectName }: ExportMenuProps) {
       let notice: string | null = null;
 
       if (kind === "pdf") {
-        const bytes = await buildChartPdfBytes(chart, { title: projectName });
+        const bytes = await buildChartPdfBytes(chart, {
+          title: projectName,
+          showSymbols,
+        });
         blob = new Blob([bytes], { type: "application/pdf" });
         filename = `${base}.pdf`;
         accept = { "application/pdf": [".pdf"] };
       } else {
-        const png = await renderChartPngBlob(chart, { title: projectName });
+        const png = await renderChartPngBlob(chart, {
+          title: projectName,
+          showSymbols,
+        });
         blob = png.blob;
         filename = `${base}.png`;
         accept = { "image/png": [".png"] };
