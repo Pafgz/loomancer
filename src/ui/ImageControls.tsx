@@ -54,13 +54,12 @@ export function ImageControls({
     <>
       <div className="card">
         <label className="file-picker">
-          <span>{draft.sourceImage ? "Replace photo" : "Select photo"}</span>
           <input
             className="visually-hidden"
             type="file"
             accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
             aria-label={
-              draft.sourceImage ? "Choose a different photo" : "Choose a photo"
+              draft.sourceImage ? "Replace photo" : "Choose a photo"
             }
             onChange={(event) => {
               onFileChange(event.target.files);
@@ -68,8 +67,13 @@ export function ImageControls({
             }}
           />
           <span className="file-picker-cta" aria-hidden="true">
-            {draft.sourceImage ? "Choose a different photo" : "Choose photo"}
+            {draft.sourceImage ? "Replace photo" : "Choose photo"}
           </span>
+          {!draft.sourceImage ? (
+            <span className="muted file-picker-hint">
+              JPEG, PNG, or WebP · stays on this device
+            </span>
+          ) : null}
         </label>
 
         {error ? (
@@ -112,12 +116,11 @@ export function ImageControls({
               </p>
             ) : null}
           </div>
-        ) : (
-          <p className="muted">
-            Choose a JPEG, PNG, or WebP photo from this device. Photos stay on
-            your device.
+        ) : draft.sourceImage ? (
+          <p className="muted" role="status">
+            Preparing photo preview…
           </p>
-        )}
+        ) : null}
       </div>
 
       {draft.sourceImage ? (

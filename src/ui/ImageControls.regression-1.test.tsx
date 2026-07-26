@@ -35,7 +35,7 @@ describe("ImageControls photo picker label", () => {
       />,
     );
 
-    expect(screen.getByText("Select photo")).toBeInTheDocument();
+    expect(screen.getByText("Choose photo")).toBeInTheDocument();
     expect(screen.getByLabelText(/choose a photo/i)).toBeInTheDocument();
     expect(screen.queryByText(/no file chosen/i)).not.toBeInTheDocument();
   });
@@ -50,9 +50,7 @@ describe("ImageControls photo picker label", () => {
     render(<ImageControls {...baseProps} draft={draft} />);
 
     expect(screen.getByText("Replace photo")).toBeInTheDocument();
-    expect(
-      screen.getByLabelText(/choose a different photo/i),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/replace photo/i)).toBeInTheDocument();
     expect(screen.queryByText(/no file chosen/i)).not.toBeInTheDocument();
   });
 });
