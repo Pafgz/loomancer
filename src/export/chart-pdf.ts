@@ -1,6 +1,14 @@
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import type { ColorworkChart } from "../domain/models";
-import { buildColorKeyRows, hexToRgb01, shouldLabel } from "./chart-export";
+import {
+  buildColorKeyRows,
+  CHART_READING_HINT,
+  hexToRgb01,
+  isMajorGridLine,
+  rowNumberAtRow,
+  shouldLabel,
+  stitchNumberAtColumn,
+} from "./chart-export";
 
 /**
  * PDF export lives in its own module so `pdf-lib` stays out of the app's first
@@ -10,10 +18,13 @@ import { buildColorKeyRows, hexToRgb01, shouldLabel } from "./chart-export";
 /** Points-per-cell used for the vector PDF. */
 const PDF_CELL_PT = 16;
 
+/** Missing-cell fill — Hairline Strong from the design system. */
+const MISSING_CELL_HEX = "#cbd0da";
+
 /**
- * Build a vector-first PDF: filled cell rectangles, grid, symbols, edge
- * coordinates, and a color key. Rendered from canonical chart data, never a
- * screenshot.
+ * Build a vector-first PDF: filled cell rectangles, major/minor grid, symbols,
+ * traditional edge coordinates, reading hint, and a color key. Rendered from
+ * canonical chart data, never a screenshot.
  */
 export async function buildChartPdfBytes(
   chart: ColorworkChart,
@@ -24,6 +35,7 @@ export async function buildChartPdfBytes(
   const gutter = cell * 1.8;
   const margin = 36;
   const titleHeight = 28;
+  const hintHeight = 18;
   const keyRowHeight = cell * 1.4;
   const keyHeight = cell * 1.6 + keyRowHeight * chart.palette.length;
 
@@ -31,14 +43,15 @@ export async function buildChartPdfBytes(
   const chartH = chart.height * cell;
   const pageWidth = margin * 2 + gutter + chartW;
   const pageHeight =
-    margin * 2 + titleHeight + gutter + chartH + cell + keyHeight;
+    margin * 2 + titleHeight + gutter + chartH + hintHeight + cell + keyHeight;
 
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const page = doc.addPage([pageWidth, pageHeight]);
 
-  const line = rgb(0.75, 0.77, 0.82);
+  const minorLine = rgb(0.78, 0.8, 0.84);
+  const majorLineColor = rgb(0.28, 0.3, 0.34);
   const ink = rgb(0.1, 0.11, 0.14);
 
   // pdf-lib uses a bottom-left origin; we lay the chart out from the top.
@@ -61,12 +74,16 @@ export async function buildChartPdfBytes(
 
   const gridTop = top - titleHeight - 12;
   const gridLeft = margin + gutter;
+  const gridBottom = gridTop - chartH;
 
-  // Column coordinates (top).
+  // Column coordinates (top) — stitch 1 at the right.
   for (let col = 0; col < chart.width; col += 1) {
-    if (!shouldLabel(col + 1, chart.width)) continue;
-    page.drawText(String(col + 1), {
-      x: gridLeft + col * cell + cell / 2 - 3,
+    const stitch = stitchNumberAtColumn(col, chart.width);
+    if (!shouldLabel(stitch, chart.width)) continue;
+    const label = String(stitch);
+    const labelWidth = font.widthOfTextAtSize(label, 6);
+    page.drawText(label, {
+      x: gridLeft + col * cell + cell / 2 - labelWidth / 2,
       y: gridTop + 4,
       size: 6,
       font,
@@ -74,18 +91,25 @@ export async function buildChartPdfBytes(
     });
   }
 
+  // Row coordinates (left) — row 1 at the bottom.
+  for (let row = 0; row < chart.height; row += 1) {
+    const rowNo = rowNumberAtRow(row, chart.height);
+    if (!shouldLabel(rowNo, chart.height)) continue;
+    const label = String(rowNo);
+    const labelWidth = font.widthOfTextAtSize(label, 6);
+    const cellTopY = gridTop - row * cell;
+    page.drawText(label, {
+      x: gridLeft - 8 - labelWidth,
+      y: cellTopY - cell / 2 - 2,
+      size: 6,
+      font,
+      color: rgb(0.45, 0.47, 0.53),
+    });
+  }
+
+  // Cell fills (grid drawn once afterward for major/minor weights).
   for (let row = 0; row < chart.height; row += 1) {
     const cellTopY = gridTop - row * cell;
-    // Row coordinates (left).
-    if (shouldLabel(row + 1, chart.height)) {
-      page.drawText(String(row + 1), {
-        x: gridLeft - 16,
-        y: cellTopY - cell / 2 - 3,
-        size: 6,
-        font,
-        color: rgb(0.45, 0.47, 0.53),
-      });
-    }
     for (let col = 0; col < chart.width; col += 1) {
       const entry = chart.palette[chart.cells[row * chart.width + col]];
       const x = gridLeft + col * cell;
@@ -95,9 +119,7 @@ export async function buildChartPdfBytes(
         y,
         width: cell,
         height: cell,
-        color: hexToRgb01Color(entry?.hex ?? "#cccccc"),
-        borderColor: line,
-        borderWidth: 0.5,
+        color: hexToRgb01Color(entry?.hex ?? MISSING_CELL_HEX),
       });
       if (showSymbols && entry?.symbol) {
         drawPdfSymbol(
@@ -112,8 +134,40 @@ export async function buildChartPdfBytes(
     }
   }
 
+  // Major / minor grid from traditional origin (right + bottom).
+  for (let i = 0; i <= chart.width; i += 1) {
+    const fromRight = chart.width - i;
+    const major = isMajorGridLine(fromRight, chart.width);
+    const x = gridLeft + i * cell;
+    page.drawLine({
+      start: { x, y: gridBottom },
+      end: { x, y: gridTop },
+      thickness: major ? 1.35 : 0.45,
+      color: major ? majorLineColor : minorLine,
+    });
+  }
+  for (let j = 0; j <= chart.height; j += 1) {
+    const fromBottom = chart.height - j;
+    const major = isMajorGridLine(fromBottom, chart.height);
+    const y = gridTop - j * cell;
+    page.drawLine({
+      start: { x: gridLeft, y },
+      end: { x: gridLeft + chartW, y },
+      thickness: major ? 1.35 : 0.45,
+      color: major ? majorLineColor : minorLine,
+    });
+  }
+
+  page.drawText(sanitizeWinAnsi(CHART_READING_HINT), {
+    x: margin,
+    y: gridBottom - 14,
+    size: 8,
+    font,
+    color: rgb(0.4, 0.42, 0.48),
+  });
+
   // Color key.
-  const keyTop = gridTop - chartH - cell - 8;
+  const keyTop = gridBottom - hintHeight - 10;
   page.drawText("Color key", {
     x: margin,
     y: keyTop,
@@ -130,7 +184,7 @@ export async function buildChartPdfBytes(
       width: cell,
       height: cell,
       color: hexToRgb01Color(keyRow.hex),
-      borderColor: line,
+      borderColor: minorLine,
       borderWidth: 0.5,
     });
     if (showSymbols) {
