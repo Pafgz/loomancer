@@ -5,7 +5,10 @@ import {
   buildColorKeyRows,
   chartCellHex,
   computePngLayout,
+  isMajorGridLine,
   MAX_PNG_SIDE,
+  rowNumberAtRow,
+  stitchNumberAtColumn,
 } from "./chart-export";
 import { buildChartPdfBytes } from "./chart-pdf";
 
@@ -53,11 +56,31 @@ describe("chartCellHex", () => {
   });
 });
 
+describe("traditional knitting coordinates", () => {
+  it("numbers stitches from the right and rows from the bottom", () => {
+    expect(stitchNumberAtColumn(0, 12)).toBe(12);
+    expect(stitchNumberAtColumn(11, 12)).toBe(1);
+    expect(rowNumberAtRow(0, 20)).toBe(20);
+    expect(rowNumberAtRow(19, 20)).toBe(1);
+  });
+
+  it("marks major grid lines every 5 from the knitting origin, plus both edges", () => {
+    expect(isMajorGridLine(0, 12)).toBe(true); // origin (right / bottom)
+    expect(isMajorGridLine(5, 12)).toBe(true);
+    expect(isMajorGridLine(10, 12)).toBe(true);
+    expect(isMajorGridLine(12, 12)).toBe(true); // far edge
+    expect(isMajorGridLine(1, 12)).toBe(false);
+    expect(isMajorGridLine(4, 12)).toBe(false);
+    expect(isMajorGridLine(7, 12)).toBe(false);
+  });
+});
+
 describe("computePngLayout", () => {
-  it("sizes the image from the chart grid plus coordinate gutter and color key", () => {
+  it("sizes the image from the chart grid plus coordinate gutter, hint, and color key", () => {
     const layout = computePngLayout(sampleChart(), 20);
     expect(layout.cellSize).toBe(20);
     expect(layout.clamped).toBe(false);
+    expect(layout.hintHeight).toBeGreaterThan(0);
     // chart occupies width*cell / height*cell within the image
     expect(layout.width).toBeGreaterThan(3 * 20);
     expect(layout.height).toBeGreaterThan(2 * 20);

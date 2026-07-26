@@ -6,6 +6,13 @@ export const MAX_PNG_SIDE = 4096;
 /** Default on-screen cell size (px) used when the caller doesn't specify one. */
 export const DEFAULT_CELL_PX = 28;
 
+/** Bold counting lines every N stitches and rows (knitting-chart convention). */
+export const MAJOR_GRID_EVERY = 5;
+
+/** Short footer on exports so knitters know where to start. */
+export const CHART_READING_HINT =
+  "Start bottom-right. In the round: read right to left, bottom to top.";
+
 export type ColorKeyRow = {
   symbol: string;
   hex: string;
@@ -33,7 +40,34 @@ export function chartCellHex(
   col: number,
 ): string {
   const cell = chart.cells[row * chart.width + col];
-  return chart.palette[cell]?.hex ?? "#cccccc";
+  return chart.palette[cell]?.hex ?? "#cbd0da";
+}
+
+/**
+ * Traditional knitting: stitch 1 is the rightmost column. `colZeroBased` is
+ * left-to-right storage order (image / array index).
+ */
+export function stitchNumberAtColumn(colZeroBased: number, width: number): number {
+  return width - colZeroBased;
+}
+
+/**
+ * Traditional knitting: row 1 is the bottom row. `rowZeroBased` is top-to-bottom
+ * storage order (image / array index).
+ */
+export function rowNumberAtRow(rowZeroBased: number, height: number): number {
+  return height - rowZeroBased;
+}
+
+/**
+ * Grid line major weight when measured from the knitting origin (right edge for
+ * vertical lines, bottom edge for horizontal). `cellsFromOrigin` is 0 on that
+ * origin edge and `total` on the far edge; both edges and every
+ * {@link MAJOR_GRID_EVERY} cells are major.
+ */
+export function isMajorGridLine(cellsFromOrigin: number, total: number): boolean {
+  if (cellsFromOrigin === 0 || cellsFromOrigin === total) return true;
+  return cellsFromOrigin % MAJOR_GRID_EVERY === 0;
 }
 
 export type PngLayout = {
@@ -41,6 +75,7 @@ export type PngLayout = {
   cellSize: number;
   gutter: number;
   padding: number;
+  hintHeight: number;
   keyTitleHeight: number;
   keyRowHeight: number;
   keyHeight: number;
@@ -57,6 +92,7 @@ function measure(
 ): Omit<PngLayout, "requestedCellSize" | "clamped"> {
   const gutter = Math.round(cellSize * 1.6);
   const padding = Math.round(cellSize * 0.6);
+  const hintHeight = Math.round(cellSize * 1.15);
   const keyTitleHeight = Math.round(cellSize * 1.6);
   const keyRowHeight = Math.round(cellSize * 1.3);
   const keyHeight =
@@ -64,11 +100,13 @@ function measure(
   const chartWidthPx = chart.width * cellSize;
   const chartHeightPx = chart.height * cellSize;
   const width = padding + gutter + chartWidthPx + padding;
-  const height = padding + gutter + chartHeightPx + keyHeight + padding;
+  const height =
+    padding + gutter + chartHeightPx + hintHeight + keyHeight + padding;
   return {
     cellSize,
     gutter,
     padding,
+    hintHeight,
     keyTitleHeight,
     keyRowHeight,
     keyHeight,
@@ -140,6 +178,46 @@ function symbolInkForCanvas(hex: string): string {
   return luminance > 0.6 ? "#1a1a1a" : "#f2f2f2";
 }
 
+function drawExportGrid(
+  ctx: CanvasRenderingContext2D,
+  gridLeft: number,
+  gridTop: number,
+  cellSize: number,
+  cols: number,
+  rows: number,
+): void {
+  const chartRight = gridLeft + cols * cellSize;
+  const chartBottom = gridTop + rows * cellSize;
+  const minor = "rgba(0,0,0,0.16)";
+  const major = "rgba(0,0,0,0.55)";
+  const minorWidth = Math.max(1, Math.round(cellSize * 0.04));
+  const majorWidth = Math.max(2, Math.round(cellSize * 0.09));
+
+  for (let i = 0; i <= cols; i += 1) {
+    const fromRight = cols - i;
+    const majorLine = isMajorGridLine(fromRight, cols);
+    const x = gridLeft + i * cellSize + (majorLine ? 0 : 0.5);
+    ctx.beginPath();
+    ctx.moveTo(x, gridTop);
+    ctx.lineTo(x, chartBottom);
+    ctx.strokeStyle = majorLine ? major : minor;
+    ctx.lineWidth = majorLine ? majorWidth : minorWidth;
+    ctx.stroke();
+  }
+
+  for (let j = 0; j <= rows; j += 1) {
+    const fromBottom = rows - j;
+    const majorLine = isMajorGridLine(fromBottom, rows);
+    const y = gridTop + j * cellSize + (majorLine ? 0 : 0.5);
+    ctx.beginPath();
+    ctx.moveTo(gridLeft, y);
+    ctx.lineTo(chartRight, y);
+    ctx.strokeStyle = majorLine ? major : minor;
+    ctx.lineWidth = majorLine ? majorWidth : minorWidth;
+    ctx.stroke();
+  }
+}
+
 /**
  * Draw the chart onto a 2D canvas context from canonical chart data. Shared by
  * the browser PNG renderer; kept separate so layout stays testable.
@@ -163,47 +241,52 @@ export function drawChartToCanvas(
   ctx.textBaseline = "middle";
   ctx.font = `${Math.round(cellSize * 0.5)}px monospace`;
 
-  // Coordinates.
+  // Coordinates — traditional: stitch 1 at right, row 1 at bottom.
   ctx.fillStyle = "#71767f";
   for (let col = 0; col < chart.width; col += 1) {
-    if (!shouldLabel(col + 1, chart.width)) continue;
+    const stitch = stitchNumberAtColumn(col, chart.width);
+    if (!shouldLabel(stitch, chart.width)) continue;
     ctx.fillText(
-      String(col + 1),
+      String(stitch),
       gridLeft + col * cellSize + cellSize / 2,
       gridTop - cellSize * 0.5,
     );
   }
   for (let row = 0; row < chart.height; row += 1) {
-    if (!shouldLabel(row + 1, chart.height)) continue;
+    const rowNo = rowNumberAtRow(row, chart.height);
+    if (!shouldLabel(rowNo, chart.height)) continue;
     ctx.fillText(
-      String(row + 1),
+      String(rowNo),
       gridLeft - cellSize * 0.8,
       gridTop + row * cellSize + cellSize / 2,
     );
   }
 
-  // Cells + symbols.
+  // Cells + symbols (grid drawn once afterward for major/minor weights).
   for (let row = 0; row < chart.height; row += 1) {
     for (let col = 0; col < chart.width; col += 1) {
       const entry = chart.palette[chart.cells[row * chart.width + col]];
       const x = gridLeft + col * cellSize;
       const y = gridTop + row * cellSize;
-      ctx.fillStyle = entry?.hex ?? "#cccccc";
+      ctx.fillStyle = entry?.hex ?? "#cbd0da";
       ctx.fillRect(x, y, cellSize, cellSize);
-      ctx.strokeStyle = "rgba(0,0,0,0.18)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + 0.5, y + 0.5, cellSize, cellSize);
       if (showSymbols && entry?.symbol) {
         ctx.fillStyle = symbolInkForCanvas(entry.hex);
         ctx.fillText(entry.symbol, x + cellSize / 2, y + cellSize / 2);
       }
     }
   }
+  drawExportGrid(ctx, gridLeft, gridTop, cellSize, chart.width, chart.height);
 
-  // Color key.
-  let keyY = gridTop + chart.height * cellSize + layout.padding;
-  ctx.fillStyle = "#1a1d23";
+  // Reading hint, then color key.
+  let keyY = gridTop + chart.height * cellSize + Math.round(cellSize * 0.35);
+  ctx.fillStyle = "#5c6370";
   ctx.textAlign = "left";
+  ctx.font = `${Math.round(cellSize * 0.38)}px sans-serif`;
+  ctx.fillText(CHART_READING_HINT, padding, keyY);
+  keyY = gridTop + chart.height * cellSize + layout.hintHeight;
+
+  ctx.fillStyle = "#1a1d23";
   ctx.font = `bold ${Math.round(cellSize * 0.6)}px sans-serif`;
   ctx.fillText(title, padding, keyY + cellSize * 0.5);
   keyY += layout.keyTitleHeight;
@@ -212,6 +295,7 @@ export function drawChartToCanvas(
     ctx.fillStyle = keyRow.hex;
     ctx.fillRect(padding, keyY, cellSize, cellSize);
     ctx.strokeStyle = "rgba(0,0,0,0.18)";
+    ctx.lineWidth = 1;
     ctx.strokeRect(padding + 0.5, keyY + 0.5, cellSize, cellSize);
     if (showSymbols) {
       ctx.fillStyle = symbolInkForCanvas(keyRow.hex);
