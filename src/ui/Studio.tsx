@@ -618,10 +618,10 @@ export function Studio({
               }}
             />
           ) : (
-            <p className="muted">
+            <p className="chart-stage-empty" role="status">
               {isGenerating
                 ? "Generating Colorwork Chart…"
-                : "Chart preview will appear here after generation."}
+                : "Chart preview will appear here after you choose a photo."}
             </p>
           )}
         </section>
@@ -645,7 +645,8 @@ export function Studio({
             />
           ) : (
             <p className="muted">
-              Chart colors and Yarn Inventory matches will appear here.
+              Chart colors and Yarn Inventory matches appear here after the
+              Colorwork Chart is ready.
             </p>
           )}
         </section>

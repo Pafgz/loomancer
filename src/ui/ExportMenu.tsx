@@ -55,6 +55,7 @@ export function ExportMenu({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState(false);
   const capabilities = useMemo(() => getExportCapabilities(), []);
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -150,6 +151,7 @@ export function ExportMenu({
     }
     setBusy(`${kind}-${method}`);
     setStatus(null);
+    setStatusError(false);
     try {
       const base = safeFileName(projectName);
       let blob: Blob;
@@ -194,6 +196,7 @@ export function ExportMenu({
         notice ? `${notice} ${RESULT_MESSAGE[result]}` : RESULT_MESSAGE[result],
       );
     } catch (error) {
+      setStatusError(true);
       setStatus(
         error instanceof Error ? error.message : "Export failed. Try again.",
       );
@@ -258,7 +261,10 @@ export function ExportMenu({
             </div>
           ))}
           {status ? (
-            <p className="export-status" role="status">
+            <p
+              className={statusError ? "export-status is-error" : "export-status"}
+              role="status"
+            >
               {status}
             </p>
           ) : null}

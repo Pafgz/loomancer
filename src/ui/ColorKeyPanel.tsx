@@ -152,7 +152,7 @@ export function ColorKeyPanel({
             Add color to key
           </button>
 
-          <h3>Suggested Yarn Inventory matches</h3>
+          <p className="section-label">Yarn matches</p>
           <p className="muted">
             Suggestions are not applied until you confirm. Quantity is
             informational only.
@@ -247,21 +247,27 @@ export function ColorKeyPanel({
         <button type="submit">Add Yarn Color</button>
       </form>
 
-      <ul className="inventory-list" aria-label="Yarn Inventory">
-        {inventory.map((yarn) => (
-          <li key={yarn.id}>
-            <span
-              className="swatch"
-              style={{ background: yarn.displayColor }}
-              aria-hidden="true"
-            />
-            <span>
-              {yarn.name}
-              {yarn.quantity ? ` · qty ${yarn.quantity}` : ""}
-            </span>
-          </li>
-        ))}
-      </ul>
+      {inventory.length === 0 ? (
+        <p className="muted inventory-empty">
+          No Yarn Colors yet. Add one to get match suggestions.
+        </p>
+      ) : (
+        <ul className="inventory-list" aria-label="Yarn Inventory">
+          {inventory.map((yarn) => (
+            <li key={yarn.id}>
+              <span
+                className="swatch"
+                style={{ background: yarn.displayColor }}
+                aria-hidden="true"
+              />
+              <span>
+                {yarn.name}
+                {yarn.quantity ? ` · qty ${yarn.quantity}` : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

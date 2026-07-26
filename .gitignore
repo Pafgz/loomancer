@@ -18,3 +18,4 @@ pnpm-debug.log*
 # Coverage
 coverage
 *.tsbuildinfo
+.gstack/

@@ -81,7 +81,7 @@ describe("Studio image controls", () => {
     );
 
     const controls = screen.getByRole("region", { name: /image controls/i });
-    const fileInput = within(controls).getByLabelText(/select photo/i);
+    const fileInput = within(controls).getByLabelText(/choose a photo|replace photo/i);
     fireEvent.change(fileInput, {
       target: { files: [new File([tinyPng], "fox.png", { type: "image/png" })] },
     });
@@ -146,7 +146,7 @@ describe("Studio image controls", () => {
     );
 
     await user.upload(
-      screen.getByLabelText(/select photo/i),
+      screen.getByLabelText(/choose a photo|replace photo/i),
       new File([tinyPng], "fox.png", { type: "image/png" }),
     );
     await waitFor(() => expect(screen.getByAltText(/source preview/i)).toBeInTheDocument());
@@ -170,7 +170,7 @@ describe("Studio image controls", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText(/select photo/i), {
+    fireEvent.change(screen.getByLabelText(/choose a photo|replace photo/i), {
       target: {
         files: [new File([tinyPng], "drawing.gif", { type: "image/gif" })],
       },
@@ -193,7 +193,7 @@ describe("Studio image controls", () => {
     );
 
     await user.upload(
-      screen.getByLabelText(/select photo/i),
+      screen.getByLabelText(/choose a photo|replace photo/i),
       new File([tinyPng], "fox.png", { type: "image/png" }),
     );
     await waitFor(() => expect(stubGenerate).toHaveBeenCalled());
@@ -223,7 +223,7 @@ describe("Studio image controls", () => {
     expect(screen.getByRole("button", { name: /^export$/i })).toBeDisabled();
 
     await user.upload(
-      screen.getByLabelText(/select photo/i),
+      screen.getByLabelText(/choose a photo|replace photo/i),
       new File([tinyPng], "fox.png", { type: "image/png" }),
     );
     await vi.advanceTimersByTimeAsync(350);
@@ -275,7 +275,7 @@ describe("Studio image controls", () => {
     );
 
     await user.upload(
-      screen.getByLabelText(/select photo/i),
+      screen.getByLabelText(/choose a photo|replace photo/i),
       new File([tinyPng], "fox.png", { type: "image/png" }),
     );
 
