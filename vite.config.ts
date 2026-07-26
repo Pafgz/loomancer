@@ -5,7 +5,7 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // On GitHub Pages the app is served from https://<user>.github.io/<repo>/, so the
 // CI build sets a subpath base. Local dev and other hosts stay at root.
-const base = process.env.GITHUB_PAGES === "true" ? "/loomancer/" : "/";
+const base = process.env.GITHUB_PAGES === "true" ? "/yarnlane/" : "/";
 
 export default defineConfig({
   base,
@@ -15,10 +15,11 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg"],
       manifest: {
-        name: "Loomancer",
-        short_name: "Loomancer",
-        description: "Conjure Colorwork Charts from photos on your device.",
-        theme_color: "#4f46e5",
+        name: "Yarnlane",
+        short_name: "Yarnlane",
+        description:
+          "Create Colorwork Charts and keep your place while knitting — on your device.",
+        theme_color: "#f1f3f7",
         background_color: "#f1f3f7",
         display: "standalone",
         start_url: ".",

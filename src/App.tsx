@@ -7,6 +7,7 @@ import {
   type YarnColor,
 } from "./domain/models";
 import type { LocalRepository } from "./repository/local-repository";
+import { BrandMark } from "./ui/BrandMark";
 import {
   describeStorageError,
   ensurePersistentStorage,
@@ -159,11 +160,9 @@ export function App({ repository }: AppProps) {
     <div className="home">
       <header className="home-header">
         <div className="brand-mark">
-          <span className="logo" aria-hidden="true">
-            L
-          </span>
+          <BrandMark />
           <div className="header-titles">
-            <p className="brand">Loomancer</p>
+            <p className="brand">Yarnlane</p>
             <h1>Pattern Projects</h1>
           </div>
         </div>

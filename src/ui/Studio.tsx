@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import {
   createInlineChartGenerator,
   type ChartGenerator,
@@ -32,8 +38,18 @@ import { ColorKeyPanel } from "./ColorKeyPanel";
 import { ExportMenu } from "./ExportMenu";
 import { ImageControls } from "./ImageControls";
 import { ThemeToggle } from "./ThemeToggle";
+import { useMediaQuery } from "./useMediaQuery";
 
 type StudioTab = "framing" | "chart" | "colors";
+
+const STUDIO_TABS = [
+  ["framing", "Framing"],
+  ["chart", "Chart"],
+  ["colors", "Colors"],
+] as const satisfies ReadonlyArray<readonly [StudioTab, string]>;
+
+/** Below this width the three panes collapse into a real tab set. */
+const COMPACT_LAYOUT = "(max-width: 64rem)";
 
 type StudioProps = {
   project: PatternProject;
@@ -73,6 +89,47 @@ export function Studio({
   );
   const [studioTab, setStudioTab] = useState<StudioTab>("framing");
   const generationIdRef = useRef(0);
+  const compact = useMediaQuery(COMPACT_LAYOUT);
+
+  /**
+   * Wide layout shows all three panes at once — they are landmarks, not tabs.
+   * Only the compact layout is a tab set, so the roles follow the breakpoint.
+   */
+  function paneProps(id: StudioTab, label: string) {
+    return compact
+      ? {
+          id: `studio-pane-${id}`,
+          role: "tabpanel" as const,
+          "aria-labelledby": `studio-tab-${id}`,
+        }
+      : { id: `studio-pane-${id}`, "aria-label": label };
+  }
+
+  function onTabKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (!compact) {
+      return;
+    }
+    const index = STUDIO_TABS.findIndex(([id]) => id === studioTab);
+    let next = index;
+    if (event.key === "ArrowRight") {
+      next = (index + 1) % STUDIO_TABS.length;
+    } else if (event.key === "ArrowLeft") {
+      next = (index - 1 + STUDIO_TABS.length) % STUDIO_TABS.length;
+    } else if (event.key === "Home") {
+      next = 0;
+    } else if (event.key === "End") {
+      next = STUDIO_TABS.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    const target = STUDIO_TABS[next];
+    if (!target) {
+      return;
+    }
+    setStudioTab(target[0]);
+    document.getElementById(`studio-tab-${target[0]}`)?.focus();
+  }
 
   useEffect(() => {
     setDraft(project);
@@ -484,31 +541,34 @@ export function Studio({
         </div>
       </header>
 
-      <div className="studio-layout" data-tab={studioTab}>
-        <nav className="studio-tabs" aria-label="Studio sections">
-          {(
-            [
-              ["framing", "Framing"],
-              ["chart", "Chart"],
-              ["colors", "Colors"],
-            ] as const
-          ).map(([id, label]) => (
+      <main className="studio-layout" data-tab={studioTab}>
+        <div
+          className="studio-tabs"
+          role={compact ? "tablist" : undefined}
+          aria-label="Studio sections"
+        >
+          {STUDIO_TABS.map(([id, label]) => (
             <button
               key={id}
+              id={`studio-tab-${id}`}
               type="button"
+              role={compact ? "tab" : undefined}
               className={studioTab === id ? "studio-tab active" : "studio-tab"}
-              aria-current={studioTab === id ? "page" : undefined}
+              aria-selected={compact ? studioTab === id : undefined}
+              aria-controls={compact ? `studio-pane-${id}` : undefined}
+              tabIndex={compact && studioTab !== id ? -1 : undefined}
+              onKeyDown={onTabKeyDown}
               onClick={() => setStudioTab(id)}
             >
               {label}
             </button>
           ))}
-        </nav>
+        </div>
 
         <section
           className="panel studio-pane"
           data-pane="framing"
-          aria-label="Image controls"
+          {...paneProps("framing", "Image controls")}
         >
           <h2>Framing</h2>
           <ImageControls
@@ -542,7 +602,7 @@ export function Studio({
         <section
           className="chart-stage studio-pane"
           data-pane="chart"
-          aria-label="Colorwork Chart"
+          {...paneProps("chart", "Colorwork Chart")}
         >
           <h2 className="visually-hidden">Colorwork Chart</h2>
           {draft.chart ? (
@@ -569,7 +629,7 @@ export function Studio({
         <section
           className="panel studio-pane"
           data-pane="colors"
-          aria-label="Color key"
+          {...paneProps("colors", "Color key")}
         >
           <h2>Color key</h2>
           {draft.chart ? (
@@ -589,7 +649,7 @@ export function Studio({
             </p>
           )}
         </section>
-      </div>
+      </main>
     </div>
   );
 }

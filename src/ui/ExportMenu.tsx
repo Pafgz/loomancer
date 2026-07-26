@@ -1,10 +1,14 @@
-import { useMemo, useState } from "react";
-import type { ColorworkChart } from "../domain/models";
 import {
-  buildChartPdfBytes,
-  MAX_PNG_SIDE,
-  renderChartPngBlob,
-} from "../export/chart-export";
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
+import type { ColorworkChart } from "../domain/models";
+import { MAX_PNG_SIDE, renderChartPngBlob } from "../export/chart-export";
 import {
   downloadBlob,
   getExportCapabilities,
@@ -30,6 +34,12 @@ function safeFileName(name: string): string {
   return base || "colorwork-chart";
 }
 
+const METHOD_LABEL: Record<Method, string> = {
+  download: "Download",
+  share: "Share",
+  save: "Save",
+};
+
 const RESULT_MESSAGE: Record<DeliveryResult, string> = {
   shared: "Shared.",
   saved: "Saved.",
@@ -46,6 +56,93 @@ export function ExportMenu({
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const capabilities = useMemo(() => getExportCapabilities(), []);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const labelId = useId();
+
+  const closeMenu = useCallback((returnFocus: boolean) => {
+    setOpen(false);
+    if (returnFocus) {
+      triggerRef.current?.focus();
+    }
+  }, []);
+
+  // Move focus into the menu on open so keyboard users are not stranded on the
+  // trigger with an invisible panel below them.
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    menuItems(panelRef.current)[0]?.focus();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    function onPointerDown(event: MouseEvent | TouchEvent) {
+      const target = event.target;
+      if (
+        target instanceof Node &&
+        !containerRef.current?.contains(target)
+      ) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+    };
+  }, [open]);
+
+  function onPanelKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeMenu(true);
+      return;
+    }
+    if (event.key === "Tab") {
+      // A menu is not a focus trap; leaving it closes it.
+      setOpen(false);
+      return;
+    }
+
+    const items = menuItems(panelRef.current);
+    if (items.length === 0) {
+      return;
+    }
+    const current = items.indexOf(document.activeElement as HTMLButtonElement);
+
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault();
+        items[(current + 1) % items.length]?.focus();
+        return;
+      case "ArrowUp":
+        event.preventDefault();
+        items[(current - 1 + items.length) % items.length]?.focus();
+        return;
+      case "Home":
+        event.preventDefault();
+        items[0]?.focus();
+        return;
+      case "End":
+        event.preventDefault();
+        items[items.length - 1]?.focus();
+        return;
+      default:
+    }
+  }
+
+  function onTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (event.key === "ArrowDown" && chart) {
+      event.preventDefault();
+      setOpen(true);
+    }
+  }
 
   async function run(kind: "pdf" | "png", method: Method) {
     if (!chart) {
@@ -61,6 +158,9 @@ export function ExportMenu({
       let notice: string | null = null;
 
       if (kind === "pdf") {
+        // pdf-lib is heavy and only PDF export needs it, so it loads on demand
+        // rather than in the Studio's first paint.
+        const { buildChartPdfBytes } = await import("../export/chart-pdf");
         const bytes = await buildChartPdfBytes(chart, {
           title: projectName,
           showSymbols,
@@ -102,50 +202,58 @@ export function ExportMenu({
     }
   }
 
+  const methods: Method[] = [
+    "download",
+    ...(capabilities.canShare ? (["share"] as const) : []),
+    ...(capabilities.canSave ? (["save"] as const) : []),
+  ];
+
   return (
-    <div className="export-menu">
+    <div className="export-menu" ref={containerRef}>
       <button
+        ref={triggerRef}
         type="button"
         className="primary"
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={!chart}
         onClick={() => setOpen((value) => !value)}
+        onKeyDown={onTriggerKeyDown}
       >
         Export
       </button>
 
       {open && chart ? (
-        <div className="export-panel" role="menu">
+        <div
+          ref={panelRef}
+          className="export-panel"
+          role="menu"
+          aria-label="Export Colorwork Chart"
+          onKeyDown={onPanelKeyDown}
+        >
           {(["pdf", "png"] as const).map((kind) => (
-            <div className="export-group" key={kind}>
-              <h3>{kind.toUpperCase()}</h3>
+            <div
+              className="export-group"
+              key={kind}
+              role="group"
+              aria-labelledby={`${labelId}-${kind}`}
+            >
+              <h3 id={`${labelId}-${kind}`}>{kind.toUpperCase()}</h3>
               <div className="export-actions">
-                <button
-                  type="button"
-                  onClick={() => void run(kind, "download")}
-                  disabled={busy !== null}
-                >
-                  {busy === `${kind}-download` ? "Working…" : "Download"}
-                </button>
-                {capabilities.canShare ? (
+                {methods.map((method) => (
                   <button
+                    key={method}
                     type="button"
-                    onClick={() => void run(kind, "share")}
+                    role="menuitem"
+                    aria-label={`${METHOD_LABEL[method]} as ${kind.toUpperCase()}`}
+                    onClick={() => void run(kind, method)}
                     disabled={busy !== null}
                   >
-                    {busy === `${kind}-share` ? "Working…" : "Share"}
+                    {busy === `${kind}-${method}`
+                      ? "Working…"
+                      : METHOD_LABEL[method]}
                   </button>
-                ) : null}
-                {capabilities.canSave ? (
-                  <button
-                    type="button"
-                    onClick={() => void run(kind, "save")}
-                    disabled={busy !== null}
-                  >
-                    {busy === `${kind}-save` ? "Working…" : "Save"}
-                  </button>
-                ) : null}
+                ))}
               </div>
             </div>
           ))}
@@ -157,5 +265,14 @@ export function ExportMenu({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function menuItems(panel: HTMLElement | null): HTMLButtonElement[] {
+  if (!panel) {
+    return [];
+  }
+  return Array.from(
+    panel.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)'),
   );
 }

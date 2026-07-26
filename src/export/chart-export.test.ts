@@ -2,12 +2,12 @@ import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 import type { ColorworkChart } from "../domain/models";
 import {
-  buildChartPdfBytes,
   buildColorKeyRows,
   chartCellHex,
   computePngLayout,
   MAX_PNG_SIDE,
 } from "./chart-export";
+import { buildChartPdfBytes } from "./chart-pdf";
 
 function sampleChart(): ColorworkChart {
   return {

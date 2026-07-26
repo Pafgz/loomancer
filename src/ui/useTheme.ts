@@ -2,7 +2,34 @@ import { useCallback, useEffect, useState } from "react";
 
 export type Theme = "light" | "dark";
 
-const STORAGE_KEY = "loomancer-theme";
+const STORAGE_KEY = "yarnlane-theme";
+
+/** Browser chrome color per theme — matches `--bg` in index.css. */
+const THEME_COLOR: Record<Theme, string> = {
+  light: "#f1f3f7",
+  dark: "#0d1017",
+};
+
+/**
+ * Keep the browser/PWA chrome in step with the chosen theme. index.html ships
+ * media-scoped tags for first paint; once a knitter picks a theme by hand there
+ * must be exactly one tag left, or the OS preference keeps winning.
+ */
+function syncThemeColor(theme: Theme): void {
+  const head = document.head;
+  const existing = head.querySelectorAll<HTMLMetaElement>(
+    'meta[name="theme-color"]',
+  );
+  const meta = existing[0] ?? head.appendChild(document.createElement("meta"));
+  meta.setAttribute("name", "theme-color");
+  meta.removeAttribute("media");
+  meta.setAttribute("content", THEME_COLOR[theme]);
+  existing.forEach((tag, index) => {
+    if (index > 0) {
+      tag.remove();
+    }
+  });
+}
 
 function readStoredTheme(): Theme | null {
   try {
@@ -30,6 +57,7 @@ export function useTheme(): { theme: Theme; toggleTheme: () => void } {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    syncThemeColor(theme);
     try {
       localStorage.setItem(STORAGE_KEY, theme);
     } catch {

@@ -1,9 +1,11 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
+  type KeyboardEvent,
   type PointerEvent,
   type ReactNode,
   type TouchEvent,
@@ -16,6 +18,9 @@ import {
   computeFitScale,
 } from "./chart-viewport-math";
 import { drawColorworkChart } from "./draw-colorwork-chart";
+
+/** Pan distance for one arrow-key press (Shift multiplies it). */
+const PAN_STEP_PX = 40;
 
 type ChartViewportProps = {
   chart: ColorworkChart;
@@ -44,6 +49,7 @@ export function ChartViewport({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [fitted, setFitted] = useState(true);
+  const hintId = useId();
 
   const content = chartContentSize(chart.width, chart.height);
   const fitScale =
@@ -240,6 +246,50 @@ export function ChartViewport({
     zoomBy(event.deltaY > 0 ? 0.9 : 1.1);
   }
 
+  /** Keyboard parity with pointer pan/zoom: arrows pan, +/- zoom, 0 refits. */
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const step = event.shiftKey ? PAN_STEP_PX * 4 : PAN_STEP_PX;
+    let dx = 0;
+    let dy = 0;
+
+    switch (event.key) {
+      case "ArrowLeft":
+        dx = step;
+        break;
+      case "ArrowRight":
+        dx = -step;
+        break;
+      case "ArrowUp":
+        dy = step;
+        break;
+      case "ArrowDown":
+        dy = -step;
+        break;
+      case "+":
+      case "=":
+        event.preventDefault();
+        zoomBy(1.18);
+        return;
+      case "-":
+      case "_":
+        event.preventDefault();
+        zoomBy(0.85);
+        return;
+      case "0":
+        event.preventDefault();
+        fitToViewport();
+        return;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    txRef.current += dx;
+    tyRef.current += dy;
+    applyTransform();
+    markUnfitted();
+  }
+
   return (
     <div
       className={
@@ -291,6 +341,11 @@ export function ChartViewport({
       <div
         ref={stageRef}
         className="chart-viewport-stage"
+        tabIndex={0}
+        role="group"
+        aria-label="Chart pan and zoom area"
+        aria-describedby={hintId}
+        onKeyDown={onKeyDown}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -311,15 +366,38 @@ export function ChartViewport({
             transform: `translate(${txRef.current}px, ${tyRef.current}px) scale(${scaleRef.current})`,
           }}
         >
-          <div
-            className="chart-grid chart-grid-canvas"
-            role="table"
-            aria-label={`${chart.width} by ${chart.height} Colorwork Chart`}
-          >
-            <canvas ref={canvasRef} aria-hidden="true" />
+          <div className="chart-grid chart-grid-canvas">
+            <canvas
+              ref={canvasRef}
+              role="img"
+              aria-label={chartDescription(chart)}
+            />
           </div>
         </div>
       </div>
+
+      <p id={hintId} className="visually-hidden">
+        Arrow keys pan the chart, plus and minus zoom, zero refits it to the
+        view. Hold Shift with an arrow key to pan faster.
+      </p>
     </div>
   );
+}
+
+/**
+ * Text alternative for the chart canvas. Colors alone are not a channel a
+ * screen reader can use, so the label names the size and the palette symbols.
+ */
+function chartDescription(chart: ColorworkChart): string {
+  const size = `${chart.width} by ${chart.height} stitch Colorwork Chart`;
+  if (chart.palette.length === 0) {
+    return size;
+  }
+  const colors = chart.palette
+    .map(
+      (entry) =>
+        `${entry.symbol} ${entry.yarnLabel ?? entry.hex} (${entry.stitchCount} stitches)`,
+    )
+    .join(", ");
+  return `${size}. ${chart.palette.length} colors: ${colors}. Export the chart for a readable copy.`;
 }
