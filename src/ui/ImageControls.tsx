@@ -54,15 +54,22 @@ export function ImageControls({
     <>
       <div className="card">
         <label className="file-picker">
-          <span>Select photo</span>
+          <span>{draft.sourceImage ? "Replace photo" : "Select photo"}</span>
           <input
+            className="visually-hidden"
             type="file"
             accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+            aria-label={
+              draft.sourceImage ? "Choose a different photo" : "Choose a photo"
+            }
             onChange={(event) => {
               onFileChange(event.target.files);
               event.target.value = "";
             }}
           />
+          <span className="file-picker-cta" aria-hidden="true">
+            {draft.sourceImage ? "Choose a different photo" : "Choose photo"}
+          </span>
         </label>
 
         {error ? (
