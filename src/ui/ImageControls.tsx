@@ -3,6 +3,7 @@ import {
   MAX_CHART_DIMENSION,
   MAX_DETAIL,
   MIN_CHART_COLORS,
+  MIN_CHART_DIMENSION,
   MIN_DETAIL,
 } from "../chart/chart-types";
 import type { CropRect, PatternProject } from "../domain/models";
@@ -188,6 +189,44 @@ export function ImageControls({
             />
             <span className="hint">{draft.maxColors} colors</span>
           </div>
+        </div>
+      ) : draft.chart ? (
+        // A hand-drawn chart still needs to be resizable. Detail and Maximum
+        // colors are photo-conversion settings, so they stay out of the way.
+        <div className="card">
+          <h3>Chart size</h3>
+          <div className="crop-fields">
+            <label>
+              Stitch width
+              <input
+                type="number"
+                inputMode="numeric"
+                min={MIN_CHART_DIMENSION}
+                max={MAX_CHART_DIMENSION}
+                value={draft.chartWidth}
+                onChange={(event) =>
+                  onDimensionChange("chartWidth", event.target.value)
+                }
+              />
+            </label>
+            <label>
+              Row height
+              <input
+                type="number"
+                inputMode="numeric"
+                min={MIN_CHART_DIMENSION}
+                max={MAX_CHART_DIMENSION}
+                value={draft.chartHeight}
+                onChange={(event) =>
+                  onDimensionChange("chartHeight", event.target.value)
+                }
+              />
+            </label>
+          </div>
+          <p className="hint">
+            Resizing keeps the top-left corner. New stitches take the first
+            color in the key.
+          </p>
         </div>
       ) : null}
     </>

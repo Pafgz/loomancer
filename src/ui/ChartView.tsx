@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ColorworkChart } from "../domain/models";
+import type { ChartCell } from "./chart-viewport-math";
 import { ChartViewport } from "./ChartViewport";
 
 type ChartViewProps = {
@@ -7,6 +8,9 @@ type ChartViewProps = {
   isGenerating?: boolean;
   showSymbols?: boolean;
   onShowSymbolsChange?: (show: boolean) => void;
+  activePaintIndex?: number | null;
+  onActivePaintIndexChange?: (index: number | null) => void;
+  onPaintCells?: (cells: ChartCell[]) => void;
 };
 
 export function ChartView({
@@ -14,6 +18,9 @@ export function ChartView({
   isGenerating = false,
   showSymbols = true,
   onShowSymbolsChange,
+  activePaintIndex,
+  onActivePaintIndexChange,
+  onPaintCells,
 }: ChartViewProps) {
   const [fullscreen, setFullscreen] = useState(false);
 
@@ -46,6 +53,9 @@ export function ChartView({
         chart={chart}
         showSymbols={showSymbols}
         onShowSymbolsChange={onShowSymbolsChange}
+        activePaintIndex={activePaintIndex}
+        onActivePaintIndexChange={onActivePaintIndexChange}
+        onPaintCells={onPaintCells}
         fullscreen={fullscreen}
         onToggleFullscreen={() => setFullscreen((value) => !value)}
       />

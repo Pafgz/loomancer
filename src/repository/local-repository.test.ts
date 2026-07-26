@@ -50,6 +50,38 @@ describe("local repository", () => {
     expect(await repository.getPatternProject(remove.id)).toBeUndefined();
   });
 
+  it("round-trips the craft of a cross-stitch Pattern Project", async () => {
+    const repository = await createLocalRepository(
+      `knit-pro-${crypto.randomUUID()}`,
+    );
+    const project = createEmptyPatternProject("Sampler", "cross-stitch");
+
+    await repository.savePatternProject(project);
+
+    expect((await repository.getPatternProject(project.id))?.craftType).toBe(
+      "cross-stitch",
+    );
+  });
+
+  it("reopens a pre-craft record as knitting at the current schema version", async () => {
+    const repository = await createLocalRepository(
+      `knit-pro-${crypto.randomUUID()}`,
+    );
+    const { craftType: _craftType, ...legacy } = createEmptyPatternProject(
+      "Mountain fox",
+    );
+
+    // Written the way an older build would have: no craftType, older version.
+    await repository.savePatternProject({
+      ...legacy,
+      schemaVersion: 4,
+    } as never);
+
+    const reloaded = await repository.getPatternProject(legacy.id);
+    expect(reloaded?.craftType).toBe("knitting");
+    expect(reloaded?.schemaVersion).toBe(PATTERN_PROJECT_SCHEMA_VERSION);
+  });
+
   it("stores Yarn Inventory colors with schema version across reloads", async () => {
     const repository = await createLocalRepository(`knit-pro-${crypto.randomUUID()}`);
     const yarn = createYarnColor("Forest green", "#263e36");

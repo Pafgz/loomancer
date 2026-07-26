@@ -1,7 +1,15 @@
-export const PATTERN_PROJECT_SCHEMA_VERSION = 4;
+export const PATTERN_PROJECT_SCHEMA_VERSION = 5;
 export const YARN_INVENTORY_SCHEMA_VERSION = 1;
 
 export type RotationDegrees = 0 | 90 | 180 | 270;
+
+/** The craft a Pattern Project is worked in. Decides its chart conventions. */
+export type CraftType = "knitting" | "cross-stitch";
+
+export const DEFAULT_CRAFT_TYPE: CraftType = "knitting";
+
+export const DEFAULT_CHART_WIDTH = 48;
+export const DEFAULT_CHART_HEIGHT = 36;
 
 export type CropRect = {
   x: number;
@@ -29,6 +37,8 @@ export type PatternProject = {
   id: string;
   name: string;
   schemaVersion: typeof PATTERN_PROJECT_SCHEMA_VERSION;
+  /** Fixed at creation; switching it would reinterpret an existing chart. */
+  craftType: CraftType;
   createdAt: string;
   updatedAt: string;
   sourceImage?: Blob;
@@ -61,19 +71,23 @@ export type YarnColor = {
   schemaVersion: typeof YARN_INVENTORY_SCHEMA_VERSION;
 };
 
-export function createEmptyPatternProject(name: string): PatternProject {
+export function createEmptyPatternProject(
+  name: string,
+  craftType: CraftType = DEFAULT_CRAFT_TYPE,
+): PatternProject {
   const now = new Date().toISOString();
   return {
     id: crypto.randomUUID(),
     name,
     schemaVersion: PATTERN_PROJECT_SCHEMA_VERSION,
+    craftType,
     createdAt: now,
     updatedAt: now,
     rotationDegrees: 0,
     crop: null,
     detailLevel: 6,
-    chartWidth: 48,
-    chartHeight: 36,
+    chartWidth: DEFAULT_CHART_WIDTH,
+    chartHeight: DEFAULT_CHART_HEIGHT,
     aspectLocked: true,
     maxColors: 6,
     chart: null,

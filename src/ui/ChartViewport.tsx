@@ -13,11 +13,22 @@ import {
 } from "react";
 import type { ColorworkChart } from "../domain/models";
 import {
+  CHART_CELL_PX,
+  CHART_GAP_PX,
+  chartCellAtStagePoint,
+  chartCellLine,
+  chartCellRect,
   chartContentSize,
   clampChartScale,
   computeFitScale,
+  type ChartCell,
+  type ChartViewTransform,
 } from "./chart-viewport-math";
-import { drawColorworkChart } from "./draw-colorwork-chart";
+import {
+  configureChartCellText,
+  drawChartCell,
+  drawColorworkChart,
+} from "./draw-colorwork-chart";
 
 /** Pan distance for one arrow-key press (Shift multiplies it). */
 const PAN_STEP_PX = 40;
@@ -29,6 +40,11 @@ type ChartViewportProps = {
   toolbarExtra?: ReactNode;
   fullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  /** Palette index the pointer paints with; null means the drag pans instead. */
+  activePaintIndex?: number | null;
+  onActivePaintIndexChange?: (index: number | null) => void;
+  /** Called once per stroke, never once per stitch, so undo stays one step. */
+  onPaintCells?: (cells: ChartCell[]) => void;
 };
 
 /**
@@ -43,13 +59,22 @@ export function ChartViewport({
   toolbarExtra,
   fullscreen = false,
   onToggleFullscreen,
+  activePaintIndex = null,
+  onActivePaintIndexChange,
+  onPaintCells,
 }: ChartViewportProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [fitted, setFitted] = useState(true);
+  const [cursor, setCursor] = useState<ChartCell>({ x: 0, y: 0 });
   const hintId = useId();
+
+  const canPaint = !!onPaintCells && !!onActivePaintIndexChange;
+  const paintEntry =
+    activePaintIndex === null ? undefined : chart.palette[activePaintIndex];
+  const painting = canPaint && !!paintEntry;
 
   const content = chartContentSize(chart.width, chart.height);
   const fitScale =
@@ -123,6 +148,13 @@ export function ChartViewport({
     viewport.height,
   ]);
 
+  const redrawChart = useCallback(() => {
+    const context = canvasRef.current?.getContext("2d");
+    if (context) {
+      drawColorworkChart(context, chart, { showSymbols });
+    }
+  }, [chart, showSymbols]);
+
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) {
@@ -140,6 +172,15 @@ export function ChartViewport({
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawColorworkChart(context, chart, { showSymbols });
   }, [chart, content.width, content.height, showSymbols]);
+
+  // A resize can leave the paint cursor outside the grid it belongs to.
+  useEffect(() => {
+    setCursor((current) => {
+      const x = Math.min(current.x, chart.width - 1);
+      const y = Math.min(current.y, chart.height - 1);
+      return x === current.x && y === current.y ? current : { x, y };
+    });
+  }, [chart.width, chart.height]);
 
   const markUnfitted = useCallback(() => {
     setFitted((was) => (was ? false : was));
@@ -167,12 +208,99 @@ export function ChartViewport({
     lastX: number;
     lastY: number;
   } | null>(null);
-  const pinchRef = useRef<{ distance: number; scale: number } | null>(null);
+  const pinchRef = useRef<{
+    distance: number;
+    scale: number;
+    centerX: number;
+    centerY: number;
+  } | null>(null);
+  const strokeRef = useRef<{
+    pointerId: number;
+    last: ChartCell;
+    cells: ChartCell[];
+    seen: Set<string>;
+  } | null>(null);
+
+  function viewTransform(): ChartViewTransform {
+    return {
+      viewportWidth: viewport.width,
+      viewportHeight: viewport.height,
+      chartWidth: chart.width,
+      chartHeight: chart.height,
+      scale: scaleRef.current,
+      translateX: txRef.current,
+      translateY: tyRef.current,
+    };
+  }
+
+  /** Pointer position relative to the stage's padding box, which the math expects. */
+  function cellUnderPointer(clientX: number, clientY: number) {
+    const stage = stageRef.current;
+    if (!stage) {
+      return null;
+    }
+    const rect = stage.getBoundingClientRect();
+    return chartCellAtStagePoint(
+      clientX - rect.left - stage.clientLeft,
+      clientY - rect.top - stage.clientTop,
+      viewTransform(),
+    );
+  }
+
+  /**
+   * Show the stroke on the canvas straight away. The real edit arrives on
+   * release, so without this the chart would look frozen mid-drag.
+   */
+  function previewCells(cells: readonly ChartCell[]) {
+    const context = canvasRef.current?.getContext("2d");
+    if (!context || !paintEntry) {
+      return;
+    }
+    if (showSymbols) {
+      configureChartCellText(context, CHART_CELL_PX);
+    }
+    for (const cell of cells) {
+      drawChartCell(context, paintEntry, cell.x, cell.y, { showSymbols });
+    }
+  }
+
+  function extendStroke(cells: readonly ChartCell[]) {
+    const stroke = strokeRef.current;
+    if (!stroke) {
+      return;
+    }
+    const fresh = cells.filter((cell) => !stroke.seen.has(`${cell.x},${cell.y}`));
+    for (const cell of fresh) {
+      stroke.seen.add(`${cell.x},${cell.y}`);
+      stroke.cells.push(cell);
+    }
+    previewCells(fresh);
+  }
 
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
     if (pinchRef.current) {
       return;
     }
+
+    // Primary button paints while a color is active; pan stays on the other
+    // buttons, two fingers, and the arrow keys.
+    if (painting && event.button === 0) {
+      const cell = cellUnderPointer(event.clientX, event.clientY);
+      if (!cell) {
+        return;
+      }
+      event.currentTarget.setPointerCapture(event.pointerId);
+      strokeRef.current = {
+        pointerId: event.pointerId,
+        last: cell,
+        cells: [],
+        seen: new Set(),
+      };
+      setCursor(cell);
+      extendStroke([cell]);
+      return;
+    }
+
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = {
       pointerId: event.pointerId,
@@ -182,6 +310,16 @@ export function ChartViewport({
   }
 
   function onPointerMove(event: PointerEvent<HTMLDivElement>) {
+    const stroke = strokeRef.current;
+    if (stroke && stroke.pointerId === event.pointerId) {
+      const cell = cellUnderPointer(event.clientX, event.clientY);
+      if (cell) {
+        extendStroke(chartCellLine(stroke.last, cell));
+        stroke.last = cell;
+      }
+      return;
+    }
+
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId || pinchRef.current) {
       return;
@@ -200,6 +338,14 @@ export function ChartViewport({
     if (dragRef.current?.pointerId === event.pointerId) {
       dragRef.current = null;
     }
+
+    const stroke = strokeRef.current;
+    if (stroke?.pointerId === event.pointerId) {
+      strokeRef.current = null;
+      if (stroke.cells.length > 0) {
+        onPaintCells?.(stroke.cells);
+      }
+    }
   }
 
   function onTouchStart(event: TouchEvent<HTMLDivElement>) {
@@ -209,9 +355,17 @@ export function ChartViewport({
       if (!a || !b) {
         return;
       }
+      // A second finger means the gesture was never a stroke: drop what it
+      // drew and put the real chart back on screen.
+      if (strokeRef.current) {
+        strokeRef.current = null;
+        redrawChart();
+      }
       pinchRef.current = {
         distance: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
         scale: scaleRef.current,
+        centerX: (a.clientX + b.clientX) / 2,
+        centerY: (a.clientY + b.clientY) / 2,
       };
     }
   }
@@ -231,6 +385,16 @@ export function ChartViewport({
       pinch.scale * (distance / pinch.distance),
       fitScaleRef.current,
     );
+
+    // Two fingers also pan, which is the only way to move the chart on a touch
+    // screen once one finger paints.
+    const centerX = (a.clientX + b.clientX) / 2;
+    const centerY = (a.clientY + b.clientY) / 2;
+    txRef.current += centerX - pinch.centerX;
+    tyRef.current += centerY - pinch.centerY;
+    pinch.centerX = centerX;
+    pinch.centerY = centerY;
+
     applyTransform();
     markUnfitted();
   }
@@ -246,8 +410,51 @@ export function ChartViewport({
     zoomBy(event.deltaY > 0 ? 0.9 : 1.1);
   }
 
-  /** Keyboard parity with pointer pan/zoom: arrows pan, +/- zoom, 0 refits. */
+  function moveCursor(dx: number, dy: number) {
+    setCursor((current) => ({
+      x: Math.min(chart.width - 1, Math.max(0, current.x + dx)),
+      y: Math.min(chart.height - 1, Math.max(0, current.y + dy)),
+    }));
+  }
+
+  /**
+   * Keyboard parity with pointer pan/zoom: arrows pan, +/- zoom, 0 refits.
+   * While a paint color is active the arrows drive the stitch cursor instead,
+   * so painting has a keyboard path; Shift with an arrow still pans.
+   */
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (painting && !event.shiftKey) {
+      switch (event.key) {
+        case "ArrowLeft":
+          event.preventDefault();
+          moveCursor(-1, 0);
+          return;
+        case "ArrowRight":
+          event.preventDefault();
+          moveCursor(1, 0);
+          return;
+        case "ArrowUp":
+          event.preventDefault();
+          moveCursor(0, -1);
+          return;
+        case "ArrowDown":
+          event.preventDefault();
+          moveCursor(0, 1);
+          return;
+        case "Enter":
+        case " ":
+          event.preventDefault();
+          onPaintCells?.([cursor]);
+          return;
+        case "Escape":
+          event.preventDefault();
+          onActivePaintIndexChange?.(null);
+          return;
+        default:
+          break;
+      }
+    }
+
     const step = event.shiftKey ? PAN_STEP_PX * 4 : PAN_STEP_PX;
     let dx = 0;
     let dy = 0;
@@ -338,12 +545,53 @@ export function ChartViewport({
         {toolbarExtra}
       </div>
 
+      {canPaint ? (
+        <div className="chart-paint-bar" role="group" aria-label="Paint color">
+          <button
+            type="button"
+            className={painting ? "paint-tool" : "paint-tool is-active"}
+            aria-pressed={!painting}
+            onClick={() => onActivePaintIndexChange?.(null)}
+          >
+            Pan
+          </button>
+          {chart.palette.map((entry) => (
+            <button
+              key={entry.index}
+              type="button"
+              className={
+                entry.index === activePaintIndex
+                  ? "paint-tool paint-swatch is-active"
+                  : "paint-tool paint-swatch"
+              }
+              aria-pressed={entry.index === activePaintIndex}
+              aria-label={`Paint with ${entry.symbol} ${entry.yarnLabel ?? entry.hex}`}
+              onClick={() =>
+                onActivePaintIndexChange?.(
+                  entry.index === activePaintIndex ? null : entry.index,
+                )
+              }
+            >
+              <span
+                className="swatch"
+                style={{ background: entry.hex }}
+                aria-hidden="true"
+              >
+                {entry.symbol}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       <div
         ref={stageRef}
-        className="chart-viewport-stage"
+        className={
+          painting ? "chart-viewport-stage is-painting" : "chart-viewport-stage"
+        }
         tabIndex={0}
         role="group"
-        aria-label="Chart pan and zoom area"
+        aria-label={painting ? "Chart paint area" : "Chart pan and zoom area"}
         aria-describedby={hintId}
         onKeyDown={onKeyDown}
         onPointerDown={onPointerDown}
@@ -373,13 +621,29 @@ export function ChartViewport({
               aria-label={chartDescription(chart)}
             />
           </div>
+          {painting ? (
+            <div
+              className="chart-paint-cursor"
+              aria-hidden="true"
+              style={chartCellRect(cursor.x, cursor.y, CHART_CELL_PX, CHART_GAP_PX)}
+            />
+          ) : null}
         </div>
       </div>
 
       <p id={hintId} className="visually-hidden">
-        Arrow keys pan the chart, plus and minus zoom, zero refits it to the
-        view. Hold Shift with an arrow key to pan faster.
+        {painting
+          ? "Arrow keys move the stitch cursor, Enter paints it, Escape stops painting. Hold Shift with an arrow key to pan, plus and minus zoom, zero refits the chart to the view."
+          : "Arrow keys pan the chart, plus and minus zoom, zero refits it to the view. Hold Shift with an arrow key to pan faster."}
       </p>
+
+      {painting ? (
+        <p className="visually-hidden" role="status">
+          Painting with {paintEntry.symbol}{" "}
+          {paintEntry.yarnLabel ?? paintEntry.hex}. Cursor at stitch{" "}
+          {cursor.x + 1}, row {cursor.y + 1}.
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { createBlankChart } from "../chart/blank-chart";
 import { createEmptyPatternProject } from "../domain/models";
 import { createLocalRepository } from "../repository/local-repository";
 import { Studio } from "./Studio";
@@ -296,5 +297,191 @@ describe("Studio image controls", () => {
         latest.chart?.palette.every((entry) => entry.yarnLabel !== "Forest green"),
       ).toBe(true);
     });
+  });
+});
+
+describe("Studio with a blank-canvas project", () => {
+  function blankProject(name = "Alpine motif") {
+    const base = createEmptyPatternProject(name);
+    return {
+      ...base,
+      chartWidth: 8,
+      chartHeight: 6,
+      aspectLocked: false,
+      chart: createBlankChart(8, 6),
+      paletteManuallyEdited: true,
+    };
+  }
+
+  it("shows the chart and color key without a photo", async () => {
+    const project = blankProject();
+
+    render(
+      <Studio
+        {...studioProps}
+        project={project}
+        onProjectChange={async () => undefined}
+      />,
+    );
+
+    expect(
+      screen.getByRole("img", { name: /8 by 6 stitch colorwork chart/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^export$/i })).toBeEnabled();
+    expect(screen.queryByLabelText(/maximum colors/i)).not.toBeInTheDocument();
+  });
+
+  it("resizes the grid, keeps counts honest, and undoes as one step", async () => {
+    const user = userEvent.setup();
+    const project = blankProject();
+    let latest = project;
+    const onProjectChange = vi.fn(async (next) => {
+      latest = next;
+    });
+
+    render(
+      <Studio
+        {...studioProps}
+        project={project}
+        onProjectChange={onProjectChange}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/stitch width/i), {
+      target: { value: "12" },
+    });
+
+    await waitFor(() => {
+      expect(latest.chart?.width).toBe(12);
+    });
+    expect(latest.chartWidth).toBe(12);
+    expect(latest.chart?.height).toBe(6);
+    expect(latest.chart?.cells).toHaveLength(12 * 6);
+    expect(
+      latest.chart?.palette.reduce((sum, entry) => sum + entry.stitchCount, 0),
+    ).toBe(12 * 6);
+
+    await user.click(screen.getByRole("button", { name: /^undo$/i }));
+    await waitFor(() => {
+      expect(latest.chart?.width).toBe(8);
+    });
+    // The field has to follow the chart, or it would describe a grid that was
+    // undone away.
+    expect(latest.chartWidth).toBe(8);
+    expect(screen.getByLabelText(/stitch width/i)).toHaveValue(8);
+  });
+
+  it("saves and reopens at its edited size", async () => {
+    const repository = await createLocalRepository(
+      `knit-pro-blank-${crypto.randomUUID()}`,
+    );
+    const project = blankProject();
+    await repository.savePatternProject(project);
+
+    const onProjectChange = vi.fn(async (next) => {
+      await repository.savePatternProject(next);
+    });
+
+    const { unmount } = render(
+      <Studio
+        {...studioProps}
+        project={project}
+        onProjectChange={onProjectChange}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/row height/i), {
+      target: { value: "10" },
+    });
+    await waitFor(async () => {
+      expect((await repository.getPatternProject(project.id))?.chart?.height).toBe(
+        10,
+      );
+    });
+
+    unmount();
+    const restored = await repository.getPatternProject(project.id);
+    render(
+      <Studio
+        {...studioProps}
+        project={restored!}
+        onProjectChange={onProjectChange}
+      />,
+    );
+
+    expect(
+      screen.getByRole("img", { name: /8 by 10 stitch colorwork chart/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^export$/i })).toBeEnabled();
+  });
+
+  it("adds a color, paints a stitch with it, and undoes the stroke", async () => {
+    const user = userEvent.setup();
+    const project = blankProject();
+    let latest = project;
+    const onProjectChange = vi.fn(async (next) => {
+      latest = next;
+    });
+
+    render(
+      <Studio
+        {...studioProps}
+        project={project}
+        onProjectChange={onProjectChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /add color to key/i }));
+    await waitFor(() => {
+      expect(latest.chart?.palette).toHaveLength(2);
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: /paint with ● added color/i }),
+    );
+
+    // The keyboard path stands in for a pointer here, and is the accessible
+    // route in its own right.
+    screen.getByRole("group", { name: /chart paint area/i }).focus();
+    await user.keyboard("{ArrowRight}{ArrowDown}{Enter}");
+
+    await waitFor(() => {
+      expect(latest.chart?.cells[1 * 8 + 1]).toBe(1);
+    });
+    expect(latest.chart?.palette[1]?.stitchCount).toBe(1);
+    expect(latest.chart?.palette[0]?.stitchCount).toBe(8 * 6 - 1);
+    expect(latest.paletteManuallyEdited).toBe(true);
+
+    await user.click(screen.getByRole("button", { name: /^undo$/i }));
+    await waitFor(() => {
+      expect(latest.chart?.cells[1 * 8 + 1]).toBe(0);
+    });
+    expect(latest.chart?.palette[0]?.stitchCount).toBe(8 * 6);
+  });
+
+  it("asks before generating over a hand-drawn chart when a photo arrives", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const confirmRegeneration = vi.fn(() => false);
+    stubGenerate.mockClear();
+
+    render(
+      <Studio
+        {...studioProps}
+        project={blankProject()}
+        onProjectChange={async () => undefined}
+        confirmRegeneration={confirmRegeneration}
+      />,
+    );
+
+    await user.upload(
+      screen.getByLabelText(/choose a photo|replace photo/i),
+      new File([tinyPng], "fox.png", { type: "image/png" }),
+    );
+    await vi.advanceTimersByTimeAsync(350);
+
+    expect(confirmRegeneration).toHaveBeenCalled();
+    expect(stubGenerate).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });

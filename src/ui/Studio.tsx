@@ -5,6 +5,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
+import { resizeChart } from "../chart/blank-chart";
 import {
   createInlineChartGenerator,
   type ChartGenerator,
@@ -15,6 +16,7 @@ import {
   gridSizeFromDetail,
   MAX_CHART_DIMENSION,
 } from "../chart/chart-types";
+import { paintChartCells } from "../chart/palette-edits";
 import { rasterizeSourceToRgba } from "../chart/rasterize-source";
 import {
   fullImageCrop,
@@ -34,6 +36,7 @@ import {
   type SourceImageDecoder,
 } from "../image/validate-source-image";
 import { ChartView } from "./ChartView";
+import type { ChartCell } from "./chart-viewport-math";
 import { ColorKeyPanel } from "./ColorKeyPanel";
 import { ExportMenu } from "./ExportMenu";
 import { ImageControls } from "./ImageControls";
@@ -88,6 +91,7 @@ export function Studio({
     project.crop,
   );
   const [studioTab, setStudioTab] = useState<StudioTab>("framing");
+  const [paintIndex, setPaintIndex] = useState<number | null>(null);
   const generationIdRef = useRef(0);
   const compact = useMediaQuery(COMPACT_LAYOUT);
 
@@ -152,6 +156,15 @@ export function Studio({
     // framingSyncKey captures the applied crop identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [framingSyncKey]);
+
+  // Merging colors or regenerating can shrink the palette out from under the
+  // active paint color.
+  const paletteSize = draft.chart?.palette.length ?? 0;
+  useEffect(() => {
+    setPaintIndex((current) =>
+      current !== null && current >= paletteSize ? null : current,
+    );
+  }, [paletteSize]);
 
   useEffect(() => {
     if (!draft.sourceImage) {
@@ -218,7 +231,7 @@ export function Studio({
 
     if (current.paletteManuallyEdited) {
       const confirmed = confirmRegeneration(
-        "Regenerating will replace your palette edits. Continue?",
+        "Regenerating will replace your chart edits. Continue?",
       );
       if (!confirmed) {
         setHoldGeneration(true);
@@ -275,17 +288,45 @@ export function Studio({
     }
   }
 
-  async function applyPaletteChart(nextChart: NonNullable<PatternProject["chart"]>) {
+  /**
+   * The grid the knitter can see is the truth. Stepping through history has to
+   * carry the size fields with it, or a resize that is undone would leave the
+   * width and height boxes describing a chart that no longer exists.
+   */
+  function chartDimensions(chart: NonNullable<PatternProject["chart"]>) {
+    return { chartWidth: chart.width, chartHeight: chart.height };
+  }
+
+  /** Snapshot the chart the knitter is about to change, so Undo can restore it. */
+  function pushChartSnapshot() {
     setUndoStack((stack) =>
       draft.chart ? [...stack, draft.chart].slice(-30) : stack,
     );
     setRedoStack([]);
     setHoldGeneration(true);
+  }
+
+  async function applyPaletteChart(nextChart: NonNullable<PatternProject["chart"]>) {
+    pushChartSnapshot();
     await persist((current) => ({
       ...current,
       chart: nextChart,
       paletteManuallyEdited: true,
     }));
+  }
+
+  /** One stroke, one edit. `paintChartCells` hands back the same chart if the
+   * stroke changed nothing, which is how a repaint of already-correct stitches
+   * avoids spending an undo entry. */
+  async function handlePaintCells(cells: ChartCell[]) {
+    if (!draft.chart || paintIndex === null) {
+      return;
+    }
+    const painted = paintChartCells(draft.chart, cells, paintIndex);
+    if (painted === draft.chart) {
+      return;
+    }
+    await applyPaletteChart(painted);
   }
 
   async function handleUndo() {
@@ -298,6 +339,7 @@ export function Studio({
     await persist((current) => ({
       ...current,
       chart: previous,
+      ...chartDimensions(previous),
       paletteManuallyEdited: true,
     }));
   }
@@ -312,6 +354,7 @@ export function Studio({
     await persist((current) => ({
       ...current,
       chart: next,
+      ...chartDimensions(next),
       paletteManuallyEdited: true,
     }));
   }
@@ -430,7 +473,6 @@ export function Studio({
       return;
     }
     const clamped = Math.min(MAX_CHART_DIMENSION, Math.max(1, Math.round(value)));
-    setHoldGeneration(false);
 
     const aspectSource = framingCrop ?? draft.crop;
     const aspect = aspectSource
@@ -458,6 +500,26 @@ export function Studio({
         Math.min(MAX_CHART_DIMENSION, Math.round(clamped * aspect)),
       );
     }
+
+    // Nothing regenerates a photo-less chart, so the resize has to happen here
+    // or the stitch counts on screen would stop matching the grid.
+    if (!draft.sourceImage && draft.chart) {
+      const resized = resizeChart(draft.chart, chartWidth, chartHeight);
+      if (resized === draft.chart) {
+        return;
+      }
+      pushChartSnapshot();
+      await persist((current) => ({
+        ...current,
+        chartWidth: resized.width,
+        chartHeight: resized.height,
+        chart: resized,
+        paletteManuallyEdited: true,
+      }));
+      return;
+    }
+
+    setHoldGeneration(false);
 
     if (draft.aspectLocked && framingCrop && oriented.width && oriented.height) {
       setFramingCrop(
@@ -616,6 +678,9 @@ export function Studio({
                   showChartSymbols: show,
                 }));
               }}
+              activePaintIndex={paintIndex}
+              onActivePaintIndexChange={setPaintIndex}
+              onPaintCells={(cells) => void handlePaintCells(cells)}
             />
           ) : (
             <p className="chart-stage-empty" role="status">

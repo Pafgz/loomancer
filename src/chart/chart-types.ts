@@ -6,6 +6,7 @@ export const MAX_DETAIL = 10;
 export const DEFAULT_DETAIL = 6;
 export const MIN_LONG_EDGE_STITCHES = 16;
 export const MAX_LONG_EDGE_STITCHES = 150;
+export const MIN_CHART_DIMENSION = 1;
 export const MAX_CHART_DIMENSION = 300;
 
 export const CHART_SYMBOLS = [
@@ -52,6 +53,16 @@ export type GenerateChartInput = {
 
 export function clampDetail(detail: number): number {
   return Math.min(MAX_DETAIL, Math.max(MIN_DETAIL, Math.round(detail)));
+}
+
+export function clampChartDimension(value: number): number {
+  if (!Number.isFinite(value)) {
+    return MIN_CHART_DIMENSION;
+  }
+  return Math.min(
+    MAX_CHART_DIMENSION,
+    Math.max(MIN_CHART_DIMENSION, Math.round(value)),
+  );
 }
 
 export function clampMaxColors(maxColors: number): number {
