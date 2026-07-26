@@ -1,5 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Loomancer">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Yarnlane">
   <rect width="64" height="64" rx="14" fill="#4f46e5"/>
-  <path d="M12 44 L32 12 L52 44 Z" fill="#eef0fe"/>
-  <circle cx="32" cy="38" r="6" fill="#c7b3ff"/>
+  <g fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 22 L22 34 L32 22 L42 34 L52 22"/>
+    <path d="M22 34 L32 46 L42 34"/>
+  </g>
 </svg>

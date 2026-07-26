@@ -7,6 +7,7 @@ import {
   createLocalRepository,
   type LocalRepository,
 } from "./repository/local-repository";
+import { BrandMark } from "./ui/BrandMark";
 
 registerSW({ immediate: true });
 
@@ -32,7 +33,7 @@ function Bootstrap() {
       .catch(() => {
         if (!cancelled) {
           setError(
-            "Local storage is unavailable in this browser session. You can still open Loomancer, but Pattern Projects cannot be saved until storage works.",
+            "Local storage is unavailable in this browser session. You can still open Yarnlane, but Pattern Projects cannot be saved until storage works.",
           );
         }
       });
@@ -47,11 +48,9 @@ function Bootstrap() {
       <div className="home">
         <header className="home-header">
           <div className="brand-mark">
-            <span className="logo" aria-hidden="true">
-              L
-            </span>
+            <BrandMark />
             <div className="header-titles">
-              <p className="brand">Loomancer</p>
+              <p className="brand">Yarnlane</p>
               <h1>Pattern Projects</h1>
             </div>
           </div>
@@ -70,11 +69,9 @@ function Bootstrap() {
       <div className="home">
         <header className="home-header">
           <div className="brand-mark">
-            <span className="logo" aria-hidden="true">
-              L
-            </span>
+            <BrandMark />
             <div className="header-titles">
-              <p className="brand">Loomancer</p>
+              <p className="brand">Yarnlane</p>
               <h1>Pattern Projects</h1>
             </div>
           </div>

@@ -202,7 +202,7 @@ describe("Studio image controls", () => {
     });
     await vi.advanceTimersByTimeAsync(350);
     expect(
-      await screen.findByRole("table", { name: /colorwork chart/i }),
+      await screen.findByRole("img", { name: /colorwork chart/i }),
     ).toBeInTheDocument();
     vi.useRealTimers();
   });
@@ -227,7 +227,7 @@ describe("Studio image controls", () => {
       new File([tinyPng], "fox.png", { type: "image/png" }),
     );
     await vi.advanceTimersByTimeAsync(350);
-    await screen.findByRole("table", { name: /colorwork chart/i });
+    await screen.findByRole("img", { name: /colorwork chart/i });
 
     const exportButton = screen.getByRole("button", { name: /^export$/i });
     expect(exportButton).toBeEnabled();
@@ -236,8 +236,16 @@ describe("Studio image controls", () => {
     expect(screen.getByRole("heading", { name: /^pdf$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^png$/i })).toBeInTheDocument();
     expect(
-      screen.getAllByRole("button", { name: /download/i }),
+      screen.getAllByRole("menuitem", { name: /download/i }),
     ).toHaveLength(2);
+
+    // The menu is keyboard-usable: focus lands inside it and Escape returns.
+    expect(
+      screen.getByRole("menuitem", { name: /download as pdf/i }),
+    ).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(exportButton).toHaveFocus();
     vi.useRealTimers();
   });
 

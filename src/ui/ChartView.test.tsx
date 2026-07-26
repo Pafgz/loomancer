@@ -28,7 +28,10 @@ describe("ChartView", () => {
     );
 
     expect(
-      screen.getByRole("table", { name: /4 by 3 colorwork chart/i }),
+      screen.getByRole("img", { name: /4 by 3 stitch colorwork chart/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", { name: /chart pan and zoom area/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^fit$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /zoom in/i })).toBeInTheDocument();
@@ -58,5 +61,26 @@ describe("ChartView", () => {
 
     await user.click(screen.getByRole("button", { name: /exit full screen/i }));
     expect(screen.getByRole("button", { name: /^full screen$/i })).toBeInTheDocument();
+  });
+
+  it("pans and refits the chart from the keyboard", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<ChartView chart={chart} />);
+
+    const stage = screen.getByRole("group", { name: /chart pan and zoom area/i });
+    const world = container.querySelector<HTMLElement>(".chart-viewport-world");
+    expect(world).not.toBeNull();
+
+    stage.focus();
+    expect(stage).toHaveFocus();
+
+    await user.keyboard("{ArrowRight}");
+    expect(world?.style.transform).toContain("translate(-40px, 0px)");
+
+    await user.keyboard("{ArrowDown}");
+    expect(world?.style.transform).toContain("translate(-40px, -40px)");
+
+    await user.keyboard("0");
+    expect(world?.style.transform).toContain("translate(0px, 0px)");
   });
 });

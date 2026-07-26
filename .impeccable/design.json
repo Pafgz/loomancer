@@ -1,0 +1,459 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-26T23:59:00.000Z",
+  "title": "Design System: Yarnlane",
+  "extensions": {
+    "colorMeta": {
+      "accent-indigo": {
+        "role": "primary",
+        "displayName": "Studio Indigo",
+        "canonical": "#4f46e5",
+        "tonalRamp": [
+          "#1b1840",
+          "#272264",
+          "#332c88",
+          "#3f37ac",
+          "#4f46e5",
+          "#7d76ee",
+          "#aba6f5",
+          "#e4e2fc"
+        ]
+      },
+      "accent-indigo-dark": {
+        "role": "primary",
+        "displayName": "Periwinkle Signal",
+        "canonical": "#7c7bff",
+        "tonalRamp": [
+          "#1d1d4d",
+          "#2b2b73",
+          "#3a3a99",
+          "#4f4fc4",
+          "#7c7bff",
+          "#9d9cff",
+          "#bfbeff",
+          "#e6e6ff"
+        ]
+      },
+      "accent-soft": {
+        "role": "primary",
+        "displayName": "Indigo Wash",
+        "canonical": "#eef0fe",
+        "tonalRamp": [
+          "#23253c",
+          "#343757",
+          "#4a4e78",
+          "#6b70a1",
+          "#9297c6",
+          "#bcbfe3",
+          "#eef0fe",
+          "#f8f9ff"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Cool Paper",
+        "canonical": "#f1f3f7",
+        "tonalRamp": [
+          "#14171d",
+          "#252932",
+          "#3b414d",
+          "#5a616f",
+          "#868d9b",
+          "#b6bcc7",
+          "#dde1e8",
+          "#f1f3f7"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Card White",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#16181c",
+          "#282b31",
+          "#3e424a",
+          "#5e636d",
+          "#8a8f99",
+          "#bcc0c7",
+          "#e6e8eb",
+          "#ffffff"
+        ]
+      },
+      "surface-raised": {
+        "role": "neutral",
+        "displayName": "Bench Grey",
+        "canonical": "#f7f8fb",
+        "tonalRamp": [
+          "#15171b",
+          "#262930",
+          "#3c4048",
+          "#5b606a",
+          "#878c96",
+          "#b8bcc4",
+          "#dfe1e6",
+          "#f7f8fb"
+        ]
+      },
+      "chart-canvas": {
+        "role": "neutral",
+        "displayName": "Chart Canvas",
+        "canonical": "#e9ecf3",
+        "tonalRamp": [
+          "#12151b",
+          "#232730",
+          "#383e4a",
+          "#565e6d",
+          "#828a99",
+          "#b2b9c6",
+          "#d5dae4",
+          "#e9ecf3"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Graphite Ink",
+        "canonical": "#1a1d23",
+        "tonalRamp": [
+          "#0b0d10",
+          "#1a1d23",
+          "#2d3138",
+          "#464b55",
+          "#6a7080",
+          "#98a0b0",
+          "#c6ccd7",
+          "#eef0f4"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Slate Muted",
+        "canonical": "#656b78",
+        "tonalRamp": [
+          "#101319",
+          "#1e222a",
+          "#2f343e",
+          "#464c58",
+          "#656b78",
+          "#949aa6",
+          "#c2c7d0",
+          "#e9ebef"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#e2e5ec",
+        "tonalRamp": [
+          "#131519",
+          "#232730",
+          "#373d47",
+          "#555c68",
+          "#828995",
+          "#b3b9c3",
+          "#e2e5ec",
+          "#f4f6f9"
+        ]
+      },
+      "hairline-strong": {
+        "role": "neutral",
+        "displayName": "Hairline Strong",
+        "canonical": "#cbd0da",
+        "tonalRamp": [
+          "#121419",
+          "#212630",
+          "#353c48",
+          "#535b6a",
+          "#7f8899",
+          "#a8b0be",
+          "#cbd0da",
+          "#eaedf2"
+        ]
+      },
+      "clay-danger": {
+        "role": "tertiary",
+        "displayName": "Kiln Clay",
+        "canonical": "#b4472e",
+        "tonalRamp": [
+          "#2b100a",
+          "#471a11",
+          "#63251a",
+          "#8b3423",
+          "#b4472e",
+          "#d1755d",
+          "#e5a692",
+          "#fbe9e3"
+        ]
+      },
+      "amber-warn": {
+        "role": "tertiary",
+        "displayName": "Burnt Amber",
+        "canonical": "#92400e",
+        "tonalRamp": [
+          "#241004",
+          "#3c1b06",
+          "#552709",
+          "#74330b",
+          "#92400e",
+          "#c26a2a",
+          "#dda067",
+          "#fbf0dd"
+        ]
+      },
+      "chart-symbol-ink": {
+        "role": "neutral",
+        "displayName": "Symbol Ink",
+        "canonical": "rgb(0 0 0 / 0.78)",
+        "tonalRamp": [
+          "rgb(0 0 0 / 0.95)",
+          "rgb(0 0 0 / 0.86)",
+          "rgb(0 0 0 / 0.78)",
+          "rgb(0 0 0 / 0.62)",
+          "rgb(0 0 0 / 0.45)",
+          "rgb(0 0 0 / 0.3)",
+          "rgb(0 0 0 / 0.18)",
+          "rgb(0 0 0 / 0.08)"
+        ]
+      },
+      "swatch-hairline": {
+        "role": "neutral",
+        "displayName": "Swatch Hairline",
+        "canonical": "rgb(0 0 0 / 0.15)",
+        "tonalRamp": [
+          "rgb(0 0 0 / 0.55)",
+          "rgb(0 0 0 / 0.4)",
+          "rgb(0 0 0 / 0.3)",
+          "rgb(0 0 0 / 0.22)",
+          "rgb(0 0 0 / 0.15)",
+          "rgb(0 0 0 / 0.1)",
+          "rgb(0 0 0 / 0.06)",
+          "rgb(0 0 0 / 0.03)"
+        ]
+      },
+      "night-paper": {
+        "role": "neutral",
+        "displayName": "Night Paper",
+        "canonical": "#0d1017",
+        "tonalRamp": [
+          "#05070a",
+          "#0d1017",
+          "#161a22",
+          "#1c212b",
+          "#333b4a",
+          "#5b6577",
+          "#98a0b0",
+          "#e7eaf0"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Title",
+        "purpose": "Project name in the header — the largest type in the app. There is no display tier."
+      },
+      "root": {
+        "displayName": "Root",
+        "purpose": "16px document base; every rem step is measured from it."
+      },
+      "item-title": {
+        "displayName": "Item Title",
+        "purpose": "Project name on a project card."
+      },
+      "brand-tile": {
+        "displayName": "Brand Tile",
+        "purpose": "Glyph scale inside the 2rem indigo brand tile."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Buttons, inputs, controls, list rows."
+      },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Hints, export status, storage notice."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Stitch counts under a color-key name; tabular numerals."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase section slugs (FRAMING, COLOR KEY, PDF) and the brand line."
+      },
+      "mono": {
+        "displayName": "Chart Symbol",
+        "purpose": "Stitch symbols in chart cells and key swatches only — data, never costume."
+      }
+    },
+    "shadows": [
+      {
+        "name": "resting-layer",
+        "value": "0 1px 2px rgb(15 23 42 / 0.06), 0 1px 3px rgb(15 23 42 / 0.08)",
+        "purpose": "Cards, project cards, the chart viewport stage."
+      },
+      {
+        "name": "lifted-layer",
+        "value": "0 4px 12px rgb(15 23 42 / 0.08), 0 2px 4px rgb(15 23 42 / 0.06)",
+        "purpose": "Popovers, the chart grid, card hover."
+      },
+      {
+        "name": "resting-layer-dark",
+        "value": "0 1px 2px rgb(0 0 0 / 0.4), 0 1px 3px rgb(0 0 0 / 0.5)",
+        "purpose": "Dark-theme resting layer — composed for near-black, not inverted."
+      },
+      {
+        "name": "lifted-layer-dark",
+        "value": "0 6px 18px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.4)",
+        "purpose": "Dark-theme popovers and chart grid."
+      },
+      {
+        "name": "focus-ring",
+        "value": "0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent)",
+        "purpose": "Replaces the outline on every :focus-visible target."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-fast",
+        "value": "0.12s ease",
+        "purpose": "Background, border, and shadow changes on buttons, cards, and the file picker."
+      },
+      {
+        "name": "press",
+        "value": "0.04s ease",
+        "purpose": "1px translate on button :active — the only movement in the system."
+      }
+    ],
+    "breakpoints": [
+      { "name": "stacked", "value": "40rem" },
+      { "name": "compact", "value": "64rem" },
+      { "name": "touch", "value": "(pointer: coarse)" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single action per view — New Pattern Project, Export, Save.",
+      "html": "<button class=\"ds-btn-primary\">New Pattern Project</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 2.25rem; padding: 0 1rem; border: 1px solid #4f46e5; border-radius: 0.375rem; background: #4f46e5; color: #ffffff; font-family: Inter, -apple-system, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.12s ease, border-color 0.12s ease, transform 0.04s ease, box-shadow 0.12s ease; } .ds-btn-primary:hover { filter: brightness(1.06); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.4); } @media (pointer: coarse) { .ds-btn-primary { min-height: 2.75rem; } }"
+    },
+    {
+      "name": "Default Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Neutral control on the tool rail — Undo, Redo, Fit, Full screen.",
+      "html": "<button class=\"ds-btn\">Full screen</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 2.25rem; padding: 0 1rem; border: 1px solid #cbd0da; border-radius: 0.375rem; background: #ffffff; color: #1a1d23; font-family: Inter, -apple-system, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.12s ease, border-color 0.12s ease, transform 0.04s ease; } .ds-btn:hover { background: #f7f8fb; } .ds-btn:active { transform: translateY(1px); } .ds-btn:disabled { opacity: 0.5; cursor: not-allowed; } .ds-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.4); } @media (pointer: coarse) { .ds-btn { min-height: 2.75rem; } }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Row-level secondary and destructive actions — quiet until sought.",
+      "html": "<button class=\"ds-btn-ghost\">Delete</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; min-height: 2.25rem; padding: 0 1rem; border: 1px solid transparent; border-radius: 0.375rem; background: transparent; color: #656b78; font-family: Inter, -apple-system, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.12s ease, color 0.12s ease; } .ds-btn-ghost:hover { background: #f7f8fb; color: #1a1d23; } .ds-btn-ghost:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.4); } @media (pointer: coarse) { .ds-btn-ghost { min-height: 2.75rem; } }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Project rename, crop numbers, yarn names. Tabular numerals throughout.",
+      "html": "<label class=\"ds-field\"><span>Chart width</span><input class=\"ds-input\" type=\"text\" value=\"48\" /></label>",
+      "css": ".ds-field { display: grid; gap: 0.5rem; font-family: Inter, -apple-system, system-ui, sans-serif; font-size: 0.8rem; font-weight: 600; color: #656b78; } .ds-input { width: 100%; min-height: 2.25rem; padding: 0 0.65rem; border: 1px solid #cbd0da; border-radius: 0.375rem; background: #ffffff; color: #1a1d23; font-family: inherit; font-size: 0.875rem; font-weight: 400; font-variant-numeric: tabular-nums; } .ds-input:focus-visible { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.4); } @media (pointer: coarse) { .ds-input { min-height: 2.75rem; } }"
+    },
+    {
+      "name": "Project Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A Pattern Project on the home grid — a container for interaction, not decoration.",
+      "html": "<li class=\"ds-card\"><button class=\"ds-card-link\">Mountain fox</button><div class=\"ds-card-actions\"><button class=\"ds-card-action\">Rename</button><button class=\"ds-card-action\">Duplicate</button><button class=\"ds-card-action\">Delete</button></div></li>",
+      "css": ".ds-card { list-style: none; display: grid; gap: 0.5rem; padding: 0.75rem 1rem 1rem; border: 1px solid #e2e5ec; border-radius: 0.625rem; background: #ffffff; box-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 3px rgb(15 23 42 / 0.08); transition: border-color 0.12s ease, box-shadow 0.12s ease; font-family: Inter, -apple-system, system-ui, sans-serif; } .ds-card:hover { border-color: #4f46e5; box-shadow: 0 4px 12px rgb(15 23 42 / 0.08), 0 2px 4px rgb(15 23 42 / 0.06); } .ds-card-link { width: 100%; min-height: 2.75rem; padding: 0.5rem 0; border: 0; background: transparent; color: #1a1d23; text-align: left; font: inherit; font-size: 1rem; font-weight: 650; cursor: pointer; } .ds-card-actions { display: flex; flex-wrap: wrap; gap: 0.25rem; } .ds-card-action { min-height: 2rem; padding: 0 0.75rem; border: 1px solid transparent; border-radius: 0.375rem; background: transparent; color: #656b78; font: inherit; font-size: 0.8rem; font-weight: 500; cursor: pointer; } .ds-card-action:hover { background: #f7f8fb; color: #1a1d23; } @media (pointer: coarse) { .ds-card-action { min-height: 2.75rem; padding: 0 1rem; } }"
+    },
+    {
+      "name": "Studio Tab Bar",
+      "kind": "nav",
+      "refersTo": "button-touch",
+      "description": "Bottom tab set below 64rem — the compact layout's only navigation.",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\" aria-label=\"Studio sections\"><button class=\"ds-tab\" role=\"tab\">Framing</button><button class=\"ds-tab ds-tab-active\" role=\"tab\" aria-selected=\"true\">Chart</button><button class=\"ds-tab\" role=\"tab\">Colors</button></div>",
+      "css": ".ds-tabs { display: flex; gap: 0; padding: 0.5rem 0.75rem; border-top: 1px solid #e2e5ec; background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(10px); font-family: Inter, -apple-system, system-ui, sans-serif; } .ds-tab { flex: 1; min-height: 2.75rem; border: 0; border-radius: 0.375rem; background: transparent; color: #656b78; font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background 0.12s ease, color 0.12s ease; } .ds-tab-active { background: #eef0fe; color: #4f46e5; } .ds-tab:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.4); }"
+    },
+    {
+      "name": "Color Key Row",
+      "kind": "custom",
+      "refersTo": "color-row",
+      "description": "A chart palette entry: swatch with overprinted symbol, name, stitch count.",
+      "html": "<button class=\"ds-color-row ds-color-row-selected\"><span class=\"ds-swatch\" style=\"background:#203040\"><span class=\"ds-swatch-symbol\">▲</span></span><span class=\"ds-color-meta\"><span class=\"ds-color-name\">Forest green</span><span class=\"ds-color-count\">148 stitches</span></span></button>",
+      "css": ".ds-color-row { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 0.75rem; align-items: center; width: 100%; min-height: 2.75rem; padding: 0.5rem 0.75rem; border: 1px solid transparent; border-radius: 0.375rem; background: transparent; text-align: left; font-family: Inter, -apple-system, system-ui, sans-serif; font-size: 0.85rem; font-weight: 500; cursor: pointer; } .ds-color-row:hover { background: #f7f8fb; border-color: #e2e5ec; } .ds-color-row-selected { border-color: #4f46e5; background: #eef0fe; } .ds-swatch { position: relative; display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 0.375rem; overflow: hidden; } .ds-swatch-symbol { font-family: ui-monospace, SF Mono, Menlo, monospace; font-size: 0.8rem; font-weight: 700; line-height: 1; color: #fff; text-shadow: 0 0 2px rgb(0 0 0 / 0.85), 0 1px 2px rgb(0 0 0 / 0.55); } .ds-color-meta { display: grid; gap: 0.15rem; min-width: 0; } .ds-color-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1a1d23; } .ds-color-count { font-size: 0.75rem; color: #656b78; font-variant-numeric: tabular-nums; } @media (pointer: coarse) { .ds-color-row { min-height: 3rem; } }"
+    },
+    {
+      "name": "Chart Viewport Stage",
+      "kind": "custom",
+      "refersTo": "chart-stage",
+      "description": "The signature surface: a keyboard-operable pan/zoom plane holding the chart canvas.",
+      "html": "<div class=\"ds-stage-wrap\"><div class=\"ds-stage-toolbar\"><button class=\"ds-stage-btn\">Fit</button><button class=\"ds-stage-btn ds-stage-icon\">−</button><button class=\"ds-stage-btn ds-stage-icon\">+</button><button class=\"ds-stage-btn\">Symbols on</button></div><div class=\"ds-stage\" tabindex=\"0\" role=\"group\" aria-label=\"Chart pan and zoom area\"><div class=\"ds-stage-grid\"></div></div></div>",
+      "css": ".ds-stage-wrap { display: flex; flex-direction: column; gap: 0.5rem; padding: 1rem; background: #e9ecf3; font-family: Inter, -apple-system, system-ui, sans-serif; } .ds-stage-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; } .ds-stage-btn { min-height: 2.25rem; padding: 0 1rem; border: 1px solid #cbd0da; border-radius: 0.375rem; background: #ffffff; color: #1a1d23; font: inherit; font-size: 0.875rem; font-weight: 500; cursor: pointer; } .ds-stage-icon { width: 2.25rem; padding: 0; } .ds-stage { position: relative; display: grid; place-items: center; min-height: 10rem; overflow: hidden; border: 1px solid #e2e5ec; border-radius: 0.625rem; background: #ffffff; box-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 3px rgb(15 23 42 / 0.08); cursor: grab; } .ds-stage:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.4); } .ds-stage-grid { width: 7rem; height: 5rem; border-radius: 0.375rem; box-shadow: 0 4px 12px rgb(15 23 42 / 0.08), 0 2px 4px rgb(15 23 42 / 0.06); background-color: #203040; background-image: linear-gradient(45deg, #d0a050 25%, transparent 25%, transparent 75%, #d0a050 75%), linear-gradient(45deg, #d0a050 25%, transparent 25%, transparent 75%, #d0a050 75%); background-size: 1.4rem 1.4rem; background-position: 0 0, 0.7rem 0.7rem; }"
+    },
+    {
+      "name": "Export Menu Popover",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Keyboard-navigable menu: PDF/PNG groups, Download/Share/Save items, Escape returns focus.",
+      "html": "<div class=\"ds-menu\" role=\"menu\" aria-label=\"Export Colorwork Chart\"><div class=\"ds-menu-group\" role=\"group\"><h3 class=\"ds-menu-label\">PDF</h3><div class=\"ds-menu-actions\"><button class=\"ds-menu-item\" role=\"menuitem\">Download</button><button class=\"ds-menu-item\" role=\"menuitem\">Share</button></div></div><div class=\"ds-menu-group\" role=\"group\"><h3 class=\"ds-menu-label\">PNG</h3><div class=\"ds-menu-actions\"><button class=\"ds-menu-item\" role=\"menuitem\">Download</button><button class=\"ds-menu-item\" role=\"menuitem\">Share</button></div></div></div>",
+      "css": ".ds-menu { width: 15rem; display: grid; gap: 0.75rem; padding: 1rem; border: 1px solid #e2e5ec; border-radius: 0.625rem; background: #ffffff; box-shadow: 0 4px 12px rgb(15 23 42 / 0.08), 0 2px 4px rgb(15 23 42 / 0.06); font-family: Inter, -apple-system, system-ui, sans-serif; } .ds-menu-label { margin: 0 0 0.5rem; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #656b78; } .ds-menu-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; } .ds-menu-item { flex: 1; min-width: 4.5rem; min-height: 2.25rem; padding: 0 1rem; border: 1px solid #cbd0da; border-radius: 0.375rem; background: #ffffff; color: #1a1d23; font: inherit; font-size: 0.875rem; font-weight: 500; cursor: pointer; } .ds-menu-item:hover { background: #f7f8fb; } .ds-menu-item:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.4); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Knitter's Workbench",
+    "overview": "Yarnlane is a workbench, not a showroom. The Colorwork Chart is the work; every other surface is bench, jig, and tool rail around it. That single idea decides almost everything: the app chrome is desaturated slate and paper, the panels sit quietly on either side, and the only place saturated color is allowed to shout is the chart itself and the yarn swatches that feed it. A knitter who looks up mid-row should be able to find the chart instantly, because nothing else in the frame is competing for that attention.\n\nThe density is a tool's density, not a marketing page's. Controls are 2.25rem tall for a mouse and 2.75rem for a thumb, panels use a 0.25rem-based spacing scale, and labels are small uppercase slugs rather than headings. This is a surface people keep open for an hour while their hands are busy — it earns attention by being legible and predictable, not by being expressive.\n\nLight and dark are both composed, not inverted: the dark theme moves to a blue-black paper with a lifted surface stack and a brighter periwinkle accent so the accent still reads against the darker ground. Neither theme tints its neutrals toward the accent; the chart supplies the color.",
+    "keyCharacteristics": [
+      "Slate-and-paper neutrals; one indigo accent, used sparingly",
+      "Chart canvas is a distinct, slightly darker plane than the panels",
+      "Small radii (0.375–1rem), 1px hairlines, no decorative flourish",
+      "Input-aware sizing: denser for pointers, thumb-sized for touch",
+      "Every chart signal carries a symbol as well as a color"
+    ],
+    "rules": [
+      {
+        "name": "The Chart Owns the Color Rule",
+        "body": "UI chrome stays slate, paper, and one indigo. Any additional hue on screen must come from the knitter's chart palette or their Yarn Inventory — never from decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Symbol Companion Rule",
+        "body": "No chart or key information is carried by color alone. Every palette entry ships a symbol, and the chart canvas exposes a text alternative naming symbol, label, and stitch count.",
+        "section": "colors"
+      },
+      {
+        "name": "The No Display Type Rule",
+        "body": "Nothing in the app is larger than 1.15rem. A workbench does not need a hero headline; if something needs emphasis, it gets weight or an uppercase label, not size.",
+        "section": "typography"
+      },
+      {
+        "name": "The Chart Never Scrolls Away Rule",
+        "body": "The chart stage owns its own overflow and fits to the viewport; panels scroll, the chart pans and zooms in place.",
+        "section": "layout"
+      },
+      {
+        "name": "The Structural Shadow Rule",
+        "body": "If removing the shadow does not change what a knitter believes they can click or drag, remove it.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep the accent for action, focus, and selection only; the chart and the Yarn Inventory supply every other color on screen.",
+      "Do pair every color signal with a symbol, label, or count.",
+      "Do size controls by input method (pointer: coarse → 2.75rem), not by viewport width.",
+      "Do use the uppercase 0.7rem label for section slugs and keep real headings at 1.15rem or below.",
+      "Do give panels tonal separation and hairlines; reserve shadows for layers a knitter can act on.",
+      "Do state local-storage truth plainly where it matters (the storage notice is part of the product, not chrome)."
+    ],
+    "donts": [
+      "Don't tint the neutrals toward indigo, or introduce a second accent hue.",
+      "Don't put a card inside a card, or use a card where a labelled panel does the job.",
+      "Don't add display-scale type, gradient text, or decorative glass; the only gradient in the system is the 2rem brand tile.",
+      "Don't invert the light theme to produce dark mode — dark has its own surface stack and a brighter accent.",
+      "Don't disable all motion for reduced-motion users by blanket-killing transitions; keep state changes legible and drop only movement.",
+      "Don't let anything but the chart occupy the chart stage plane."
+    ]
+  }
+}

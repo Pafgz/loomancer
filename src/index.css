@@ -1,5 +1,5 @@
 /* ============================================================
-   Loomancer design system — clean contemporary ("Slate")
+   Yarnlane design system — clean contemporary ("Slate")
    Light + dark. Dark applies via prefers-color-scheme or a
    manual [data-theme] override on <html>.
    ============================================================ */
@@ -37,7 +37,8 @@
   --accent-soft: #eef0fe;
   --danger: #b4472e;
   --danger-soft: #fbe9e3;
-  --warn: #b45309;
+  /* Dark enough to clear 4.5:1 as text on --warn-soft, not only on --surface. */
+  --warn: #92400e;
   --warn-soft: #fbf0dd;
 
   --shadow-1: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 3px rgb(15 23 42 / 0.08);
@@ -244,6 +245,11 @@ input[type="color"] {
   color: var(--accent-ink);
   font-weight: 800;
   font-size: 0.95rem;
+}
+
+.logo svg {
+  width: 1.35rem;
+  height: 1.35rem;
 }
 
 .brand {
@@ -969,8 +975,12 @@ small {
   position: absolute;
   width: 1px;
   height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
   overflow: hidden;
   clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   white-space: nowrap;
 }
 
@@ -1059,8 +1069,65 @@ small {
   }
 }
 
+/* ------------------------------- Touch input ------------------------------- */
+/* Sized by input method, not screen width: a touch laptop needs the same
+   thumb-sized targets a phone does, while a mouse keeps the denser Studio. */
+@media (pointer: coarse) {
+  button,
+  input[type="number"],
+  input[type="text"],
+  input:not([type]),
+  select {
+    min-height: 2.75rem;
+  }
+
+  button.icon,
+  .theme-toggle {
+    width: 2.75rem;
+  }
+
+  input[type="color"] {
+    height: 2.75rem;
+  }
+
+  input[type="range"] {
+    height: 2.75rem;
+  }
+
+  .checkbox-row input[type="checkbox"] {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .project-card-actions {
+    gap: var(--sp-2);
+  }
+
+  .project-card-actions button {
+    min-height: 2.75rem;
+    padding: 0 var(--sp-4);
+  }
+
+  .color-row {
+    min-height: 3rem;
+  }
+}
+
+/* Reduced motion means no movement — not a dead interface. Colour and border
+   state changes stay so a knitter can still see what reacted to their input;
+   only travel, press-bounce, and looping animation are removed. */
 @media (prefers-reduced-motion: reduce) {
-  * {
-    transition: none !important;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-property: background-color, border-color, color, box-shadow,
+      opacity, fill, stroke !important;
+    scroll-behavior: auto !important;
+  }
+
+  button:active {
+    transform: none;
   }
 }
