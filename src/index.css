@@ -460,6 +460,167 @@ small {
   text-align: center;
 }
 
+/* ------------------------------- Dialog ------------------------------- */
+.dialog-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--sp-5);
+  padding-block: max(var(--sp-5), 6vh);
+  overflow: auto;
+  background: rgb(9 12 18 / 0.5);
+  animation: dialog-scrim-in 0.16s ease-out;
+}
+
+.dialog-panel {
+  width: min(30rem, 100%);
+  display: grid;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+  animation: dialog-panel-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dialog-panel > h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.dialog-form {
+  display: grid;
+  gap: var(--sp-5);
+}
+
+.choice-group {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.choice-group > legend {
+  padding: 0;
+  margin-bottom: var(--sp-2);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.choice:hover {
+  background: var(--surface-2);
+}
+
+.choice.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.choice:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+
+.choice input[type="radio"] {
+  margin: 0.15rem 0 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+.choice-text {
+  display: grid;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.choice-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.choice-hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.choice-group .hint {
+  margin: var(--sp-1) 0 0;
+}
+
+.dialog-grid-size {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.dialog-grid-size .hint {
+  margin: 0;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
+@keyframes dialog-scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+}
+
+@media (pointer: coarse) {
+  .choice {
+    padding: var(--sp-4) var(--sp-3);
+  }
+}
+
+@media (max-width: 40rem) {
+  .dialog-scrim {
+    padding: var(--sp-3);
+    padding-block: var(--sp-4);
+  }
+
+  .dialog-actions {
+    flex-direction: column-reverse;
+  }
+
+  .dialog-actions button {
+    width: 100%;
+  }
+}
+
 /* ------------------------------- Studio layout ------------------------------- */
 .studio-layout {
   flex: 1;
@@ -734,6 +895,54 @@ small {
 
 .chart-viewport-stage:active {
   cursor: grabbing;
+}
+
+/* Painting replaces the grab cursor: the drag now marks stitches, not the view. */
+.chart-viewport-stage.is-painting,
+.chart-viewport-stage.is-painting:active {
+  cursor: crosshair;
+}
+
+.chart-paint-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+.paint-tool.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.paint-swatch {
+  padding: 0;
+  width: 2.25rem;
+}
+
+.paint-swatch .swatch {
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  /* The swatch is any color the knitter chose, so the symbol carries its own
+     contrast rather than trusting the background. */
+  text-shadow: 0 0 2px rgb(0 0 0 / 0.85);
+}
+
+.chart-paint-cursor {
+  position: absolute;
+  pointer-events: none;
+  box-sizing: content-box;
+  border: 2px solid var(--accent);
+  outline: 1px solid rgb(255 255 255 / 0.9);
+  margin: -2px 0 0 -2px;
 }
 
 .chart-viewport-world {

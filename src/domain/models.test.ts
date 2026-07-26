@@ -41,4 +41,21 @@ describe("duplicatePatternProject", () => {
     const original = createEmptyPatternProject("Autumn");
     expect(duplicatePatternProject(original, "Winter").name).toBe("Winter");
   });
+
+  it("carries the craft over to the copy", () => {
+    const original = createEmptyPatternProject("Autumn", "cross-stitch");
+    expect(duplicatePatternProject(original).craftType).toBe("cross-stitch");
+  });
+});
+
+describe("createEmptyPatternProject craft", () => {
+  it("defaults to knitting so existing behaviour is unchanged", () => {
+    expect(createEmptyPatternProject("Autumn").craftType).toBe("knitting");
+  });
+
+  it("records cross-stitch when asked for it", () => {
+    expect(createEmptyPatternProject("Autumn", "cross-stitch").craftType).toBe(
+      "cross-stitch",
+    );
+  });
 });

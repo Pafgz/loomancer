@@ -5,6 +5,8 @@ import {
   addChartColor,
   findIndistinguishablePairs,
   mergeChartColors,
+  paintChartCell,
+  paintChartCells,
   qualitativeDistance,
   rankYarnMatches,
   replaceChartColor,
@@ -74,5 +76,64 @@ describe("palette edits", () => {
     expect(pairs).toHaveLength(1);
     expect(pairs[0]).toMatchObject({ leftIndex: 0, rightIndex: 1 });
     expect(chart.palette).toHaveLength(2);
+  });
+});
+
+describe("paintChartCells", () => {
+  it("sets a single cell to the chosen palette color", () => {
+    const painted = paintChartCell(sampleChart(), 0, 0, 1);
+    expect(painted.cells[0]).toBe(1);
+  });
+
+  it("keeps stitch counts summed to width times height", () => {
+    const painted = paintChartCell(sampleChart(), 0, 0, 1);
+    const total = painted.palette.reduce(
+      (sum, entry) => sum + entry.stitchCount,
+      0,
+    );
+
+    expect(total).toBe(painted.width * painted.height);
+    expect(painted.palette[0]?.stitchCount).toBe(2);
+    expect(painted.palette[1]?.stitchCount).toBe(6);
+  });
+
+  it("paints a whole stroke in one operation", () => {
+    const painted = paintChartCells(
+      sampleChart(),
+      [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 0, y: 1 },
+      ],
+      1,
+    );
+
+    expect(painted.cells).toEqual([1, 1, 1, 1, 1, 1, 1, 1]);
+    expect(painted.palette[0]?.stitchCount).toBe(0);
+  });
+
+  it("ignores positions outside the grid", () => {
+    const chart = sampleChart();
+    expect(paintChartCell(chart, 4, 0, 1)).toBe(chart);
+    expect(paintChartCell(chart, 0, 2, 1)).toBe(chart);
+    expect(paintChartCell(chart, -1, 0, 1)).toBe(chart);
+  });
+
+  it("ignores a palette index that does not exist", () => {
+    const chart = sampleChart();
+    expect(paintChartCell(chart, 0, 0, 9)).toBe(chart);
+    expect(paintChartCell(chart, 0, 0, -1)).toBe(chart);
+  });
+
+  it("returns the same chart when the cell already has that color", () => {
+    const chart = sampleChart();
+    expect(paintChartCell(chart, 0, 0, 0)).toBe(chart);
+  });
+
+  it("never mutates the chart it was given", () => {
+    const chart = sampleChart();
+    paintChartCell(chart, 0, 0, 1);
+    expect(chart.cells[0]).toBe(0);
+    expect(chart.palette[0]?.stitchCount).toBe(3);
   });
 });

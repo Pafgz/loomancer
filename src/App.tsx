@@ -1,7 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { createBlankChart } from "./chart/blank-chart";
 import { createWorkerChartGenerator } from "./chart/chart-generator";
 import {
   createEmptyPatternProject,
+  DEFAULT_CHART_HEIGHT,
+  DEFAULT_CHART_WIDTH,
   duplicatePatternProject,
   nextDuplicateName,
   type PatternProject,
@@ -10,11 +13,17 @@ import {
 import type { LocalRepository } from "./repository/local-repository";
 import { BrandMark } from "./ui/BrandMark";
 import {
+  NewProjectDialog,
+  type NewProjectRequest,
+} from "./ui/NewProjectDialog";
+import {
   describeStorageError,
   ensurePersistentStorage,
 } from "./repository/storage-errors";
 import { Studio } from "./ui/Studio";
 import { ThemeToggle } from "./ui/ThemeToggle";
+
+const DEFAULT_PROJECT_NAME = "Untitled pattern";
 
 type AppProps = {
   repository: LocalRepository;
@@ -32,6 +41,7 @@ export function App({ repository }: AppProps) {
   const [storageError, setStorageError] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,8 +66,22 @@ export function App({ repository }: AppProps) {
     setProjects(await repository.listPatternProjects());
   }
 
-  async function handleCreateProject() {
-    const project = createEmptyPatternProject("Untitled pattern");
+  async function handleCreateProject(request: NewProjectRequest) {
+    setCreating(false);
+    const base = createEmptyPatternProject(request.name, request.craftType);
+    const project: PatternProject =
+      request.start === "blank"
+        ? {
+            ...base,
+            chartWidth: request.chartWidth,
+            chartHeight: request.chartHeight,
+            aspectLocked: false,
+            chart: createBlankChart(request.chartWidth, request.chartHeight),
+            // A hand-drawn grid is work in its own right, so adding a photo
+            // later must ask before generating over it.
+            paletteManuallyEdited: true,
+          }
+        : base;
     try {
       await repository.savePatternProject(project);
       setStorageError(null);
@@ -179,7 +203,7 @@ export function App({ repository }: AppProps) {
           <button
             type="button"
             className="primary"
-            onClick={handleCreateProject}
+            onClick={() => setCreating(true)}
           >
             New Pattern Project
           </button>
@@ -286,6 +310,16 @@ export function App({ repository }: AppProps) {
           )}
         </section>
       </main>
+
+      {creating ? (
+        <NewProjectDialog
+          defaultName={DEFAULT_PROJECT_NAME}
+          defaultWidth={DEFAULT_CHART_WIDTH}
+          defaultHeight={DEFAULT_CHART_HEIGHT}
+          onCancel={() => setCreating(false)}
+          onCreate={(request) => void handleCreateProject(request)}
+        />
+      ) : null}
     </div>
   );
 }

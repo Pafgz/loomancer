@@ -1,5 +1,10 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { PatternProject, YarnColor } from "../domain/models";
+import {
+  DEFAULT_CRAFT_TYPE,
+  PATTERN_PROJECT_SCHEMA_VERSION,
+  type PatternProject,
+  type YarnColor,
+} from "../domain/models";
 
 export const DEFAULT_DATABASE_NAME = "loomancer";
 const DATABASE_VERSION = 3;
@@ -69,6 +74,8 @@ function fromStored(stored: StoredPatternProject): PatternProject {
   const { sourceImageBytes, ...rest } = stored;
   const normalized: PatternProject = {
     ...rest,
+    schemaVersion: PATTERN_PROJECT_SCHEMA_VERSION,
+    craftType: rest.craftType ?? DEFAULT_CRAFT_TYPE,
     rotationDegrees: rest.rotationDegrees ?? 0,
     crop: rest.crop ?? null,
     detailLevel: rest.detailLevel ?? 6,

@@ -42,7 +42,7 @@ export function qualitativeDistance(deltaE: number): string {
   return "Different";
 }
 
-function recountPalette(chart: ColorworkChart): ColorworkChart {
+export function recountPalette(chart: ColorworkChart): ColorworkChart {
   const stitchCounts = new Array(chart.palette.length).fill(0) as number[];
   for (const cell of chart.cells) {
     stitchCounts[cell] = (stitchCounts[cell] ?? 0) + 1;
@@ -130,6 +130,63 @@ export function addChartColor(
       },
     ],
   });
+}
+
+export type ChartCellPosition = {
+  x: number;
+  y: number;
+};
+
+/**
+ * Set every listed cell to one palette color. A whole drag is applied in a
+ * single call so the stroke costs one recount and one undo entry rather than
+ * one per cell. Positions outside the grid are ignored.
+ */
+export function paintChartCells(
+  chart: ColorworkChart,
+  positions: readonly ChartCellPosition[],
+  paletteIndex: number,
+): ColorworkChart {
+  if (paletteIndex < 0 || paletteIndex >= chart.palette.length) {
+    return chart;
+  }
+
+  let cells: number[] | null = null;
+  for (const { x, y } of positions) {
+    if (
+      !Number.isInteger(x) ||
+      !Number.isInteger(y) ||
+      x < 0 ||
+      y < 0 ||
+      x >= chart.width ||
+      y >= chart.height
+    ) {
+      continue;
+    }
+    const offset = y * chart.width + x;
+    if (chart.cells[offset] === paletteIndex) {
+      continue;
+    }
+    cells ??= [...chart.cells];
+    cells[offset] = paletteIndex;
+  }
+
+  // Nothing actually changed, so hand back the same chart and let the caller
+  // skip a no-op undo entry.
+  if (!cells) {
+    return chart;
+  }
+
+  return recountPalette({ ...chart, cells });
+}
+
+export function paintChartCell(
+  chart: ColorworkChart,
+  x: number,
+  y: number,
+  paletteIndex: number,
+): ColorworkChart {
+  return paintChartCells(chart, [{ x, y }], paletteIndex);
 }
 
 export type YarnMatchSuggestion = {

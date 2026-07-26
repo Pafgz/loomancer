@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
@@ -21,6 +21,11 @@ describe("Studio shell", () => {
     await user.click(
       screen.getByRole("button", { name: /new pattern project/i }),
     );
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: /^create$/i,
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: /untitled pattern/i })).toBeInTheDocument();
@@ -36,6 +41,98 @@ describe("Studio shell", () => {
     const projects = await repository.listPatternProjects();
     expect(projects).toHaveLength(1);
     expect(projects[0]?.name).toBe("Untitled pattern");
+  });
+
+  it("records the chosen craft on a new cross-stitch Pattern Project", async () => {
+    const user = userEvent.setup();
+    const repository = await createLocalRepository(
+      `knit-pro-ui-${crypto.randomUUID()}`,
+    );
+
+    render(<App repository={repository} />);
+    await user.click(
+      screen.getByRole("button", { name: /new pattern project/i }),
+    );
+
+    const dialog = within(screen.getByRole("dialog"));
+    await user.click(dialog.getByRole("radio", { name: /cross-stitch/i }));
+    await user.click(dialog.getByRole("button", { name: /^create$/i }));
+
+    await waitFor(async () => {
+      const [saved] = await repository.listPatternProjects();
+      expect(saved?.craftType).toBe("cross-stitch");
+    });
+  });
+
+  it("defaults a new Pattern Project to knitting from a photo with no chart", async () => {
+    const user = userEvent.setup();
+    const repository = await createLocalRepository(
+      `knit-pro-ui-${crypto.randomUUID()}`,
+    );
+
+    render(<App repository={repository} />);
+    await user.click(
+      screen.getByRole("button", { name: /new pattern project/i }),
+    );
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: /^create$/i,
+      }),
+    );
+
+    await waitFor(async () => {
+      const [saved] = await repository.listPatternProjects();
+      expect(saved?.craftType).toBe("knitting");
+      expect(saved?.chart).toBeNull();
+    });
+  });
+
+  it("creates a blank grid at the requested size with a full stitch count", async () => {
+    const user = userEvent.setup();
+    const repository = await createLocalRepository(
+      `knit-pro-ui-${crypto.randomUUID()}`,
+    );
+
+    render(<App repository={repository} />);
+    await user.click(
+      screen.getByRole("button", { name: /new pattern project/i }),
+    );
+
+    const dialog = within(screen.getByRole("dialog"));
+    await user.click(dialog.getByRole("radio", { name: /a blank grid/i }));
+
+    const across = dialog.getByRole("spinbutton", { name: /stitches across/i });
+    expect(across).toHaveValue(48);
+    expect(dialog.getByRole("spinbutton", { name: /rows down/i })).toHaveValue(
+      36,
+    );
+
+    await user.clear(across);
+    await user.type(across, "10");
+    await user.click(dialog.getByRole("button", { name: /^create$/i }));
+
+    await waitFor(async () => {
+      const [saved] = await repository.listPatternProjects();
+      expect(saved?.chart?.width).toBe(10);
+      expect(saved?.chart?.height).toBe(36);
+      expect(saved?.chart?.palette[0]?.stitchCount).toBe(360);
+    });
+  });
+
+  it("closes the creation dialog on Escape without saving anything", async () => {
+    const user = userEvent.setup();
+    const repository = await createLocalRepository(
+      `knit-pro-ui-${crypto.randomUUID()}`,
+    );
+
+    render(<App repository={repository} />);
+    await user.click(
+      screen.getByRole("button", { name: /new pattern project/i }),
+    );
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(await repository.listPatternProjects()).toHaveLength(0);
   });
 
   it("shows an empty local project list until a Pattern Project is created", async () => {
