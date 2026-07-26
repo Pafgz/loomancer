@@ -83,6 +83,26 @@ export function createEmptyPatternProject(name: string): PatternProject {
 }
 
 /**
+ * Pick a unique duplicate title. Strips a trailing " (copy)" / " (copy N)" from
+ * the source so repeated duplicates become "Name (copy)", "Name (copy 2)", …
+ * instead of colliding on the same label.
+ */
+export function nextDuplicateName(
+  sourceName: string,
+  existingNames: Iterable<string>,
+): string {
+  const taken = new Set(existingNames);
+  const base = sourceName.replace(/ \(copy(?: \d+)?\)$/u, "");
+  const candidate = (n: number) =>
+    n <= 1 ? `${base} (copy)` : `${base} (copy ${n})`;
+  let n = 1;
+  while (taken.has(candidate(n))) {
+    n += 1;
+  }
+  return candidate(n);
+}
+
+/**
  * Clone a Pattern Project into an independent copy with a new id, fresh
  * timestamps, and a deep-copied chart/crop so edits to the copy never touch the
  * original. The source image Blob is immutable, so it is shared by reference.

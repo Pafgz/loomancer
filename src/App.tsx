@@ -3,6 +3,7 @@ import { createWorkerChartGenerator } from "./chart/chart-generator";
 import {
   createEmptyPatternProject,
   duplicatePatternProject,
+  nextDuplicateName,
   type PatternProject,
   type YarnColor,
 } from "./domain/models";
@@ -117,7 +118,14 @@ export function App({ repository }: AppProps) {
 
   async function handleDuplicate(project: PatternProject) {
     const source = (await repository.getPatternProject(project.id)) ?? project;
-    const copy = duplicatePatternProject(source);
+    const listed = await repository.listPatternProjects();
+    const copy = duplicatePatternProject(
+      source,
+      nextDuplicateName(
+        source.name,
+        listed.map((entry) => entry.name),
+      ),
+    );
     try {
       await repository.savePatternProject(copy);
       setStorageError(null);
