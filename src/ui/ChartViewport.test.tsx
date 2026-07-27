@@ -242,3 +242,17 @@ describe("ChartViewport painting", () => {
     expect(onActivePaintIndexChange).toHaveBeenLastCalledWith(null);
   });
 });
+
+describe("ChartViewport wheel zoom", () => {
+  it("prevents page scroll while zooming over the chart stage", () => {
+    render(<ChartViewport chart={chartOf(20, 16)} />);
+
+    const event = new WheelEvent("wheel", {
+      deltaY: 120,
+      cancelable: true,
+      bubbles: true,
+    });
+    expect(stage().dispatchEvent(event)).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
+  });
+});

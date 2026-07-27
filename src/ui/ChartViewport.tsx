@@ -9,7 +9,6 @@ import {
   type PointerEvent,
   type ReactNode,
   type TouchEvent,
-  type WheelEvent,
 } from "react";
 import type { ColorworkChart } from "../domain/models";
 import {
@@ -202,6 +201,21 @@ export function ChartViewport({
     },
     [applyTransform],
   );
+
+  // React's onWheel is passive, so preventDefault there cannot stop page
+  // scroll. Own the listener so zoom stays on the chart, not the document.
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) {
+      return;
+    }
+    function onWheel(event: WheelEvent) {
+      event.preventDefault();
+      zoomBy(event.deltaY > 0 ? 0.9 : 1.1);
+    }
+    stage.addEventListener("wheel", onWheel, { passive: false });
+    return () => stage.removeEventListener("wheel", onWheel);
+  }, [zoomBy]);
 
   const dragRef = useRef<{
     pointerId: number;
@@ -405,11 +419,6 @@ export function ChartViewport({
     }
   }
 
-  function onWheel(event: WheelEvent<HTMLDivElement>) {
-    event.preventDefault();
-    zoomBy(event.deltaY > 0 ? 0.9 : 1.1);
-  }
-
   function moveCursor(dx: number, dy: number) {
     setCursor((current) => ({
       x: Math.min(chart.width - 1, Math.max(0, current.x + dx)),
@@ -601,7 +610,6 @@ export function ChartViewport({
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        onWheel={onWheel}
       >
         <div
           ref={worldRef}
