@@ -436,9 +436,11 @@ describe("Studio with a blank-canvas project", () => {
       expect(latest.chart?.palette).toHaveLength(2);
     });
 
-    await user.click(
+    // Add arms paint on the new color — no second paint-bar click needed.
+    expect(
       screen.getByRole("button", { name: /paint with ● added color/i }),
-    );
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("heading", { name: /edit ●/i })).toBeInTheDocument();
 
     // The keyboard path stands in for a pointer here, and is the accessible
     // route in its own right.
@@ -457,6 +459,53 @@ describe("Studio with a blank-canvas project", () => {
       expect(latest.chart?.cells[1 * 8 + 1]).toBe(0);
     });
     expect(latest.chart?.palette[0]?.stitchCount).toBe(8 * 6);
+  });
+
+  it("keeps paint bar and Color Key on one shared selection", async () => {
+    const user = userEvent.setup();
+    const project = blankProject();
+    let latest = project;
+    const onProjectChange = vi.fn(async (next) => {
+      latest = next;
+    });
+
+    render(
+      <Studio
+        {...studioProps}
+        project={project}
+        onProjectChange={onProjectChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /add color to key/i }));
+    await waitFor(() => {
+      expect(latest.chart?.palette).toHaveLength(2);
+    });
+
+    const keyRow = screen.getByRole("button", {
+      name: /select ● added color/i,
+    });
+    // Add already selected the new color for paint + edit.
+    expect(keyRow).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: /paint with ● added color/i }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("group", { name: /chart paint area/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /edit ●/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^pan$/i }));
+
+    expect(keyRow).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.getByRole("button", { name: /paint with ● added color/i }),
+    ).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.getByRole("group", { name: /chart pan and zoom area/i }),
+    ).toBeInTheDocument();
+    // Edit keeps the last armed color while Pan clears the shared highlight.
+    expect(screen.getByRole("heading", { name: /edit ●/i })).toBeInTheDocument();
   });
 
   it("asks before generating over a hand-drawn chart when a photo arrives", async () => {

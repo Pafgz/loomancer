@@ -1,6 +1,6 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { MAX_CHART_COLORS } from "../chart/chart-types";
 import {
-  addChartColor,
   findIndistinguishablePairs,
   mergeChartColors,
   rankYarnMatches,
@@ -15,23 +15,47 @@ import {
 type ColorKeyPanelProps = {
   chart: ColorworkChart;
   inventory: YarnColor[];
+  /** Shared Studio selection; null means Pan — no Color Key row is highlighted. */
+  selectedIndex: number | null;
+  onSelectedIndexChange: (index: number | null) => void;
   onChartChange: (chart: ColorworkChart) => void;
+  /** Adds a palette entry and arms paint on it; must not replace an existing color. */
+  onAddPaletteColor: (hex: string) => void;
   onInventoryChange: (inventory: YarnColor[]) => void;
 };
 
 export function ColorKeyPanel({
   chart,
   inventory,
+  selectedIndex,
+  onSelectedIndexChange,
   onChartChange,
+  onAddPaletteColor,
   onInventoryChange,
 }: ColorKeyPanelProps) {
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  // While Pan is active, Edit still targets the last armed color (or palette[0]).
+  const [editFocusIndex, setEditFocusIndex] = useState(0);
   const [customHex, setCustomHex] = useState("#244b3c");
+  const [newColorHex, setNewColorHex] = useState("#244b3c");
   const [yarnName, setYarnName] = useState("");
   const [yarnHex, setYarnHex] = useState("#244b3c");
   const [yarnQuantity, setYarnQuantity] = useState("");
+  const canAddColor = chart.palette.length < MAX_CHART_COLORS;
 
-  const selected = chart.palette[selectedIndex] ?? chart.palette[0];
+  useEffect(() => {
+    if (selectedIndex !== null) {
+      setEditFocusIndex(selectedIndex);
+    }
+  }, [selectedIndex]);
+
+  useEffect(() => {
+    setEditFocusIndex((current) =>
+      current >= chart.palette.length ? 0 : current,
+    );
+  }, [chart.palette.length]);
+
+  const editIndex = selectedIndex ?? editFocusIndex;
+  const selected = chart.palette[editIndex] ?? chart.palette[0];
   const suggestions = useMemo(
     () => (selected ? rankYarnMatches(selected.hex, inventory) : []),
     [selected, inventory],
@@ -72,11 +96,15 @@ export function ColorKeyPanel({
               <button
                 type="button"
                 className={
-                  entry.index === selected?.index
+                  selectedIndex !== null && entry.index === selectedIndex
                     ? "color-row selected"
                     : "color-row"
                 }
-                onClick={() => setSelectedIndex(entry.index)}
+                aria-pressed={
+                  selectedIndex !== null && entry.index === selectedIndex
+                }
+                aria-label={`Select ${entry.symbol} ${entry.yarnLabel ?? entry.hex}`}
+                onClick={() => onSelectedIndexChange(entry.index)}
               >
                 <span
                   className="swatch color-row-swatch"
@@ -97,6 +125,35 @@ export function ColorKeyPanel({
             </li>
           ))}
         </ol>
+      </div>
+
+      <div className="card">
+        <h3>Add color</h3>
+        <label>
+          New color
+          <input
+            type="color"
+            value={newColorHex}
+            onChange={(event) => setNewColorHex(event.target.value)}
+            aria-label="New palette color"
+            disabled={!canAddColor}
+          />
+        </label>
+        <button
+          type="button"
+          disabled={!canAddColor}
+          onClick={() => onAddPaletteColor(newColorHex)}
+        >
+          Add color to key
+        </button>
+        {!canAddColor ? (
+          <p className="muted">Palette is full ({MAX_CHART_COLORS} colors).</p>
+        ) : (
+          <p className="muted">
+            Adds a new key entry and selects it for painting. Does not change
+            existing colors.
+          </p>
+        )}
       </div>
 
       {selected ? (
@@ -126,7 +183,7 @@ export function ColorKeyPanel({
                 const target = Number(event.target.value);
                 if (Number.isFinite(target)) {
                   onChartChange(mergeChartColors(chart, selected.index, target));
-                  setSelectedIndex(0);
+                  onSelectedIndexChange(0);
                 }
                 event.target.value = "";
               }}
@@ -143,14 +200,6 @@ export function ColorKeyPanel({
                 ))}
             </select>
           </label>
-          <button
-            type="button"
-            onClick={() =>
-              onChartChange(addChartColor(chart, customHex, "Added color"))
-            }
-          >
-            Add color to key
-          </button>
 
           <p className="section-label">Yarn matches</p>
           <p className="muted">
