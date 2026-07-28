@@ -1,4 +1,3 @@
-import Color from "colorjs.io";
 import {
   CHART_SYMBOLS,
   clampMaxColors,
@@ -9,6 +8,7 @@ import {
 } from "./chart-types";
 
 type Rgb = [number, number, number];
+type Oklab = [number, number, number];
 
 function samplePixel(image: RgbaImage, x: number, y: number): Rgb {
   const offset = (y * image.width + x) * 4;
@@ -106,8 +106,17 @@ function medianCut(pixels: Rgb[], maxColors: number): Rgb[] {
     return [[0, 0, 0]];
   }
 
-  const uniqueKey = (pixel: Rgb) => pixel.join(",");
-  const unique = [...new Map(pixels.map((pixel) => [uniqueKey(pixel), pixel])).values()];
+  // Pack the triple into one int for the key: 90k string allocations here cost
+  // more than the rest of the split put together.
+  const unique: Rgb[] = [];
+  const seen = new Set<number>();
+  for (const pixel of pixels) {
+    const key = (pixel[0] << 16) | (pixel[1] << 8) | pixel[2];
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(pixel);
+    }
+  }
   if (unique.length <= maxColors) {
     return unique;
   }
@@ -152,20 +161,53 @@ function medianCut(pixels: Rgb[], maxColors: number): Rgb[] {
   return buckets.map((bucket) => averageColor(bucket));
 }
 
-function nearestPaletteIndex(sample: Rgb, paletteColors: Color[]): number {
-  const sampleColor = new Color("srgb", [
-    sample[0] / 255,
-    sample[1] / 255,
-    sample[2] / 255,
-  ]);
+/** sRGB gamma decode for all 256 channel values, so the hot loop never calls `pow`. */
+const LINEAR_CHANNEL = new Float64Array(256);
+for (let value = 0; value < 256; value += 1) {
+  const v = value / 255;
+  LINEAR_CHANNEL[value] = v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+}
+
+/**
+ * sRGB (0–255) to Oklab. Oklab is near-uniform perceptually, so plain squared
+ * distance in it ranks candidates much like CIEDE2000 would — at a fraction of
+ * the cost. Use it for bucketing a sample among a handful of palette colors, not
+ * for reporting a difference to the Knitter: `colorDistance` in `palette-edits`
+ * keeps true ΔE2000 for Color Match, where the number is the product promise.
+ */
+function srgbToOklab(r: number, g: number, b: number): Oklab {
+  const lr = LINEAR_CHANNEL[r] ?? 0;
+  const lg = LINEAR_CHANNEL[g] ?? 0;
+  const lb = LINEAR_CHANNEL[b] ?? 0;
+
+  const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb);
+  const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb);
+  const s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb);
+
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ];
+}
+
+/**
+ * Index of the perceptually closest palette entry. Squared distance, because the
+ * square root would not change which candidate wins.
+ */
+function nearestPaletteIndex(sample: Rgb, paletteLab: Oklab[]): number {
+  const [sl, sa, sb] = srgbToOklab(sample[0], sample[1], sample[2]);
   let bestIndex = 0;
   let bestDistance = Number.POSITIVE_INFINITY;
-  for (let i = 0; i < paletteColors.length; i += 1) {
-    const candidateColor = paletteColors[i];
-    if (!candidateColor) {
+  for (let i = 0; i < paletteLab.length; i += 1) {
+    const candidate = paletteLab[i];
+    if (!candidate) {
       continue;
     }
-    const distance = sampleColor.deltaE(candidateColor, "2000");
+    const dl = sl - candidate[0];
+    const da = sa - candidate[1];
+    const db = sb - candidate[2];
+    const distance = dl * dl + da * da + db * db;
     if (distance < bestDistance) {
       bestDistance = distance;
       bestIndex = i;
@@ -174,11 +216,8 @@ function nearestPaletteIndex(sample: Rgb, paletteColors: Color[]): number {
   return bestIndex;
 }
 
-function paletteColorsFromRgb(palette: Rgb[]): Color[] {
-  return palette.map(
-    (rgb) =>
-      new Color("srgb", [rgb[0] / 255, rgb[1] / 255, rgb[2] / 255]),
-  );
+function paletteLabFromRgb(palette: Rgb[]): Oklab[] {
+  return palette.map((rgb) => srgbToOklab(rgb[0], rgb[1], rgb[2]));
 }
 
 export function generateColorworkChart(
@@ -189,10 +228,8 @@ export function generateColorworkChart(
   const maxColors = clampMaxColors(input.maxColors);
   const samples = downsampleToGrid(input.image, width, height);
   const paletteRgb = medianCut(samples, maxColors);
-  const paletteColors = paletteColorsFromRgb(paletteRgb);
-  const cells = samples.map((sample) =>
-    nearestPaletteIndex(sample, paletteColors),
-  );
+  const paletteLab = paletteLabFromRgb(paletteRgb);
+  const cells = samples.map((sample) => nearestPaletteIndex(sample, paletteLab));
   const stitchCounts = new Array(paletteRgb.length).fill(0) as number[];
   for (const cell of cells) {
     stitchCounts[cell] = (stitchCounts[cell] ?? 0) + 1;

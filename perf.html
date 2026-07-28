@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Yarnlane perf harness</title>
+    <style>
+      body {
+        font: 13px/1.5 ui-monospace, monospace;
+        margin: 0;
+        padding: 1.5rem;
+        background: #0d1017;
+        color: #e6e8ee;
+      }
+      h1 { font-size: 1rem; margin: 0 0 1rem; }
+      button { font: inherit; padding: 0.5rem 1rem; margin-bottom: 1rem; }
+      pre { white-space: pre-wrap; }
+      canvas { display: none; }
+    </style>
+  </head>
+  <body>
+    <h1>Yarnlane perf harness — throwaway DB "loomancer-perf"</h1>
+    <button id="run" type="button">Run</button>
+    <pre id="out">idle</pre>
+    <canvas id="scratch"></canvas>
+    <script type="module" src="/src/dev/perf-harness.ts"></script>
+  </body>
+</html>

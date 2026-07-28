@@ -83,6 +83,28 @@ describe("generateColorworkChart", () => {
     ).toBe(50);
   });
 
+  it("assigns every stitch to the nearest palette color, not a neighbouring one", () => {
+    const chart = generateColorworkChart({
+      image: splitImage(40, 20),
+      width: 10,
+      height: 4,
+      maxColors: 2,
+    });
+
+    // The halves are far apart perceptually, so each side must land wholly on
+    // one palette entry and the two sides must disagree.
+    const rows = Array.from({ length: chart.height }, (_, y) =>
+      chart.cells.slice(y * chart.width, (y + 1) * chart.width),
+    );
+    for (const row of rows) {
+      const left = row.slice(0, chart.width / 2);
+      const right = row.slice(chart.width / 2);
+      expect(new Set(left).size).toBe(1);
+      expect(new Set(right).size).toBe(1);
+      expect(left[0]).not.toBe(right[0]);
+    }
+  });
+
   it("clamps invalid palette bounds to the supported 2–12 range", () => {
     const tooLow = generateColorworkChart({
       image: splitImage(20, 20),
