@@ -14,9 +14,10 @@ import {
   DEFAULT_CHART_COLORS,
   DEFAULT_DETAIL,
   gridSizeFromDetail,
+  MAX_CHART_COLORS,
   MAX_CHART_DIMENSION,
 } from "../chart/chart-types";
-import { paintChartCells } from "../chart/palette-edits";
+import { addChartColor, paintChartCells } from "../chart/palette-edits";
 import { rasterizeSourceToRgba } from "../chart/rasterize-source";
 import {
   fullImageCrop,
@@ -91,7 +92,10 @@ export function Studio({
     project.crop,
   );
   const [studioTab, setStudioTab] = useState<StudioTab>("framing");
-  const [paintIndex, setPaintIndex] = useState<number | null>(null);
+  /** Shared paint + Color Key selection; null means Pan. */
+  const [selectedPaletteIndex, setSelectedPaletteIndex] = useState<
+    number | null
+  >(null);
   const generationIdRef = useRef(0);
   const compact = useMediaQuery(COMPACT_LAYOUT);
 
@@ -158,10 +162,10 @@ export function Studio({
   }, [framingSyncKey]);
 
   // Merging colors or regenerating can shrink the palette out from under the
-  // active paint color.
+  // shared selection.
   const paletteSize = draft.chart?.palette.length ?? 0;
   useEffect(() => {
-    setPaintIndex((current) =>
+    setSelectedPaletteIndex((current) =>
       current !== null && current >= paletteSize ? null : current,
     );
   }, [paletteSize]);
@@ -315,14 +319,28 @@ export function Studio({
     }));
   }
 
+  /** Append a palette entry and arm paint on it — never replaces the current selection. */
+  async function handleAddPaletteColor(hex: string) {
+    if (!draft.chart || draft.chart.palette.length >= MAX_CHART_COLORS) {
+      return;
+    }
+    const next = addChartColor(draft.chart, hex, "Added color");
+    await applyPaletteChart(next);
+    setSelectedPaletteIndex(next.palette.length - 1);
+  }
+
   /** One stroke, one edit. `paintChartCells` hands back the same chart if the
    * stroke changed nothing, which is how a repaint of already-correct stitches
    * avoids spending an undo entry. */
   async function handlePaintCells(cells: ChartCell[]) {
-    if (!draft.chart || paintIndex === null) {
+    if (!draft.chart || selectedPaletteIndex === null) {
       return;
     }
-    const painted = paintChartCells(draft.chart, cells, paintIndex);
+    const painted = paintChartCells(
+      draft.chart,
+      cells,
+      selectedPaletteIndex,
+    );
     if (painted === draft.chart) {
       return;
     }
@@ -678,8 +696,8 @@ export function Studio({
                   showChartSymbols: show,
                 }));
               }}
-              activePaintIndex={paintIndex}
-              onActivePaintIndexChange={setPaintIndex}
+              activePaintIndex={selectedPaletteIndex}
+              onActivePaintIndexChange={setSelectedPaletteIndex}
               onPaintCells={(cells) => void handlePaintCells(cells)}
             />
           ) : (
@@ -701,8 +719,13 @@ export function Studio({
             <ColorKeyPanel
               chart={draft.chart}
               inventory={inventory}
+              selectedIndex={selectedPaletteIndex}
+              onSelectedIndexChange={setSelectedPaletteIndex}
               onChartChange={(chart) => {
                 void applyPaletteChart(chart);
+              }}
+              onAddPaletteColor={(hex) => {
+                void handleAddPaletteColor(hex);
               }}
               onInventoryChange={(next) => {
                 void onInventoryChange(next);
