@@ -5,6 +5,7 @@ set -euo pipefail
 
 SKILLS_DIR="${HOME}/.cursor/skills"
 PACKS_DIR="${HOME}/.cursor/skill-packs"
+REPO_SKILLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/skills"
 
 mkdir -p "${SKILLS_DIR}" "${PACKS_DIR}"
 
@@ -57,45 +58,14 @@ link_skill_tree() {
   done < <(find "${source_root}" -type f -name SKILL.md -print0)
 }
 
-install_impeccable() {
-  local dest="${PACKS_DIR}/impeccable"
-  clone_or_update "https://github.com/pbakaus/impeccable.git" "${dest}"
-  local skill_src=""
-  if [[ -d "${dest}/.cursor/skills/impeccable" ]]; then
-    skill_src="${dest}/.cursor/skills/impeccable"
-  elif [[ -d "${dest}/plugin/skills/impeccable" ]]; then
-    skill_src="${dest}/plugin/skills/impeccable"
-  elif [[ -d "${dest}/.agents/skills/impeccable" ]]; then
-    skill_src="${dest}/.agents/skills/impeccable"
-  else
-    echo "cloud-skills: impeccable skill folder not found" >&2
+# Project-vendored skills are the source of truth for Cloud Agents.
+install_repo_skills() {
+  if [[ ! -d "${REPO_SKILLS_DIR}" ]]; then
+    echo "cloud-skills: repo skills missing at ${REPO_SKILLS_DIR}" >&2
     exit 1
   fi
-  rm -rf "${SKILLS_DIR}/impeccable"
-  ln -sfn "${skill_src}" "${SKILLS_DIR}/impeccable"
-  log "impeccable linked"
-}
-
-install_matt_pocock() {
-  local dest="${PACKS_DIR}/mattpocock-skills"
-  clone_or_update "https://github.com/mattpocock/skills.git" "${dest}"
-  if [[ ! -d "${dest}/skills" ]]; then
-    echo "cloud-skills: mattpocock skills/ missing" >&2
-    exit 1
-  fi
-  link_skill_tree "${dest}/skills"
-  log "matt pocock skills linked"
-}
-
-install_agent_skills() {
-  local dest="${PACKS_DIR}/agent-skills"
-  clone_or_update "https://github.com/addyosmani/agent-skills.git" "${dest}"
-  if [[ ! -d "${dest}/skills" ]]; then
-    echo "cloud-skills: agent-skills skills/ missing" >&2
-    exit 1
-  fi
-  link_skill_tree "${dest}/skills"
-  log "agent-skills linked"
+  link_skill_tree "${REPO_SKILLS_DIR}"
+  log "repo .cursor/skills linked from ${REPO_SKILLS_DIR}"
 }
 
 install_gstack() {
@@ -117,10 +87,7 @@ install_gstack() {
 
 main() {
   log "installing into ${SKILLS_DIR}"
-  # Order: broader packs first; later packs overwrite same-named skills if any.
-  install_agent_skills
-  install_matt_pocock
-  install_impeccable
+  install_repo_skills
   if [[ "${CLOUD_SKILLS_SKIP_GSTACK:-0}" == "1" ]]; then
     log "skipping gstack (CLOUD_SKILLS_SKIP_GSTACK=1)"
   else

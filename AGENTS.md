@@ -14,6 +14,6 @@ Domain documentation uses a single-context layout. See `docs/agents/domain.md`.
 
 ## Cursor Cloud specific instructions
 
-Cloud Agents do not see laptop-global skills under `~/.cursor/skills`. This repo installs them on the VM via `.cursor/environment.json` → `.cursor/install-cloud-skills.sh` into `~/.cursor/skills/` (impeccable, gstack, Matt Pocock skills, Addy Osmani agent-skills).
+Cloud Agents do not see laptop-global skills under `~/.cursor/skills`. This repo installs project skills on the VM via `.cursor/environment.json` → `.cursor/install-cloud-skills.sh`, which links every skill under `.cursor/skills/` into `~/.cursor/skills/` and also installs gstack.
 
 First cloud boot after a skill-pack change can take several minutes (gstack build). Prefer saving a Cloud Agent environment snapshot from the [dashboard](https://cursor.com/dashboard/cloud-agents) so later runs reuse the checkpoint.
