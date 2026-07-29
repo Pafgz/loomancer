@@ -17,7 +17,7 @@ Let the Knitter/Stitcher select a chart color to paint, change a palette entry�
 
 ## Interaction thesis
 
-One Palette card: header `+` (picker-first add), row = select for paint, trailing Edit = color picker (apply on commit → Custom color). No separate Add/Edit cards. Merge quiet on the selected row; yarn matches under selection; Yarn Inventory remains below.
+One Palette card: header `+` opens an add editor (swatch + editable hex + Add/Cancel); row = select for paint; trailing Edit opens the same editor pattern (Apply → Custom color). No separate Add/Edit cards. Merge quiet on the selected row; yarn matches under selection; Yarn Inventory remains below.
 
 ## Pointers
 

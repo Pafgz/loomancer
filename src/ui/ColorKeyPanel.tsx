@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { MAX_CHART_COLORS } from "../chart/chart-types";
 import {
   findIndistinguishablePairs,
@@ -17,6 +11,7 @@ import {
   type ColorworkChart,
   type YarnColor,
 } from "../domain/models";
+import { normalizeHex } from "./color-hex";
 
 type ColorKeyPanelProps = {
   chart: ColorworkChart;
@@ -30,49 +25,101 @@ type ColorKeyPanelProps = {
   onInventoryChange: (inventory: YarnColor[]) => void;
 };
 
-/**
- * Native `<input type="color">` commits on the DOM `change` event (picker
- * closed / OK). React's `onChange` tracks `input` and fires while dragging —
- * which would spam palette adds/replaces — so we listen to `change` only.
- */
-function ColorCommitInput({
-  value,
-  ariaLabel,
-  className,
-  disabled,
-  onCommit,
-}: {
-  value: string;
-  ariaLabel: string;
-  className?: string;
-  disabled?: boolean;
-  onCommit: (hex: string) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const onCommitRef = useRef(onCommit);
-  onCommitRef.current = onCommit;
+type ColorEditorSession =
+  | { kind: "add" }
+  | { kind: "edit"; index: number };
 
-  useEffect(() => {
-    const input = inputRef.current;
-    if (!input) {
+const DEFAULT_ADD_HEX = "#244b3c";
+
+/**
+ * Draft color controls: native swatch + editable hex + explicit commit.
+ * Swatch/hex only update local draft — Apply/Add is the sole commit path.
+ */
+function ColorEditor({
+  initialHex,
+  groupLabel,
+  applyLabel,
+  onApply,
+  onCancel,
+}: {
+  initialHex: string;
+  groupLabel: string;
+  applyLabel: string;
+  onApply: (hex: string) => void;
+  onCancel: () => void;
+}) {
+  const [swatchHex, setSwatchHex] = useState(initialHex);
+  const [hexText, setHexText] = useState(initialHex);
+  const normalized = normalizeHex(hexText);
+  const canApply = normalized !== null;
+
+  function handleSwatchChange(value: string) {
+    setSwatchHex(value);
+    setHexText(value);
+  }
+
+  function handleHexTextChange(value: string) {
+    setHexText(value);
+    const next = normalizeHex(value);
+    if (next) {
+      setSwatchHex(next);
+    }
+  }
+
+  function handleApply() {
+    if (!normalized) {
       return;
     }
-    const handleChange = () => {
-      onCommitRef.current(input.value);
-    };
-    input.addEventListener("change", handleChange);
-    return () => input.removeEventListener("change", handleChange);
-  }, []);
+    onApply(normalized);
+  }
 
   return (
-    <input
-      ref={inputRef}
-      type="color"
-      className={className}
-      defaultValue={value}
-      aria-label={ariaLabel}
-      disabled={disabled}
-    />
+    <div className="color-editor" role="group" aria-label={groupLabel}>
+      <input
+        type="color"
+        className="color-editor-swatch"
+        value={swatchHex}
+        aria-label="Color swatch"
+        onChange={(event) => handleSwatchChange(event.target.value)}
+      />
+      <input
+        type="text"
+        className="color-editor-hex"
+        value={hexText}
+        aria-label="Hex"
+        inputMode="text"
+        autoCapitalize="characters"
+        autoCorrect="off"
+        spellCheck={false}
+        placeholder="#000000"
+        onChange={(event) => handleHexTextChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            handleApply();
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            onCancel();
+          }
+        }}
+      />
+      <button
+        type="button"
+        className="color-editor-apply"
+        disabled={!canApply}
+        onClick={handleApply}
+      >
+        {applyLabel}
+      </button>
+      <button
+        type="button"
+        className="color-editor-cancel"
+        onClick={onCancel}
+      >
+        Cancel
+      </button>
+    </div>
   );
 }
 
@@ -85,9 +132,7 @@ export function ColorKeyPanel({
   onAddPaletteColor,
   onInventoryChange,
 }: ColorKeyPanelProps) {
-  const addColorInputRef = useRef<HTMLInputElement>(null);
-  const onAddPaletteColorRef = useRef(onAddPaletteColor);
-  onAddPaletteColorRef.current = onAddPaletteColor;
+  const [editor, setEditor] = useState<ColorEditorSession | null>(null);
   const [yarnName, setYarnName] = useState("");
   const [yarnHex, setYarnHex] = useState("#244b3c");
   const [yarnQuantity, setYarnQuantity] = useState("");
@@ -103,18 +148,6 @@ export function ColorKeyPanel({
     [chart],
   );
   const canMerge = Boolean(selected) && chart.palette.length > 1;
-
-  useEffect(() => {
-    const input = addColorInputRef.current;
-    if (!input) {
-      return;
-    }
-    const handleChange = () => {
-      onAddPaletteColorRef.current(input.value);
-    };
-    input.addEventListener("change", handleChange);
-    return () => input.removeEventListener("change", handleChange);
-  }, []);
 
   function applyReplace(paletteIndex: number, hex: string, yarnLabel?: string) {
     onChartChange(replaceChartColor(chart, paletteIndex, hex, yarnLabel));
@@ -134,6 +167,17 @@ export function ColorKeyPanel({
     setYarnQuantity("");
   }
 
+  function openAddEditor() {
+    if (!canAddColor) {
+      return;
+    }
+    setEditor({ kind: "add" });
+  }
+
+  function openEditEditor(index: number) {
+    setEditor({ kind: "edit", index });
+  }
+
   return (
     <div className="color-key-panel">
       <div className="card">
@@ -143,67 +187,94 @@ export function ColorKeyPanel({
             type="button"
             className="palette-add-button"
             aria-label="Add palette color"
+            aria-expanded={editor?.kind === "add"}
             disabled={!canAddColor}
-            onClick={() => addColorInputRef.current?.click()}
+            onClick={openAddEditor}
           >
             +
           </button>
-          <input
-            ref={addColorInputRef}
-            type="color"
-            className="visually-hidden"
-            defaultValue="#244b3c"
-            aria-label="New palette color"
-            disabled={!canAddColor}
-          />
         </div>
         {!canAddColor ? (
           <p className="muted">Palette is full ({MAX_CHART_COLORS} colors).</p>
         ) : null}
+
+        {editor?.kind === "add" ? (
+          <ColorEditor
+            key="add"
+            initialHex={DEFAULT_ADD_HEX}
+            groupLabel="Add palette color"
+            applyLabel="Add"
+            onApply={(hex) => {
+              onAddPaletteColor(hex);
+              setEditor(null);
+            }}
+            onCancel={() => setEditor(null)}
+          />
+        ) : null}
+
         <ol className="chart-key" aria-label="Editable color key">
-          {chart.palette.map((entry) => (
-            <li key={entry.index} className="color-row-item">
-              <button
-                type="button"
-                className={
-                  selectedIndex !== null && entry.index === selectedIndex
-                    ? "color-row selected"
-                    : "color-row"
-                }
-                aria-pressed={
-                  selectedIndex !== null && entry.index === selectedIndex
-                }
-                aria-label={`Select ${entry.symbol} ${entry.yarnLabel ?? entry.hex}`}
-                onClick={() => onSelectedIndexChange(entry.index)}
-              >
-                <span
-                  className="swatch color-row-swatch"
-                  style={{ background: entry.hex }}
-                  aria-hidden="true"
-                >
-                  <span className="color-row-symbol">{entry.symbol}</span>
-                </span>
-                <span className="color-row-meta">
-                  {entry.yarnLabel ? (
-                    <span className="color-row-name">{entry.yarnLabel}</span>
-                  ) : null}
-                  <span className="color-row-hex">{entry.hex}</span>
-                  <span className="color-row-count">
-                    {entry.stitchCount} stitches
-                  </span>
-                </span>
-              </button>
-              <ColorCommitInput
-                key={`${entry.index}-${entry.hex}`}
-                className="color-row-edit"
-                value={entry.hex}
-                ariaLabel={`Change color for ${entry.symbol} ${entry.yarnLabel ?? entry.hex}`}
-                onCommit={(hex) =>
-                  applyReplace(entry.index, hex, "Custom color")
-                }
-              />
-            </li>
-          ))}
+          {chart.palette.map((entry) => {
+            const editingThis =
+              editor?.kind === "edit" && editor.index === entry.index;
+            return (
+              <li key={entry.index} className="color-row-item">
+                <div className="color-row-main">
+                  <button
+                    type="button"
+                    className={
+                      selectedIndex !== null && entry.index === selectedIndex
+                        ? "color-row selected"
+                        : "color-row"
+                    }
+                    aria-pressed={
+                      selectedIndex !== null && entry.index === selectedIndex
+                    }
+                    aria-label={`Select ${entry.symbol} ${entry.yarnLabel ?? entry.hex}`}
+                    onClick={() => onSelectedIndexChange(entry.index)}
+                  >
+                    <span
+                      className="swatch color-row-swatch"
+                      style={{ background: entry.hex }}
+                      aria-hidden="true"
+                    >
+                      <span className="color-row-symbol">{entry.symbol}</span>
+                    </span>
+                    <span className="color-row-meta">
+                      {entry.yarnLabel ? (
+                        <span className="color-row-name">{entry.yarnLabel}</span>
+                      ) : null}
+                      <span className="color-row-hex">{entry.hex}</span>
+                      <span className="color-row-count">
+                        {entry.stitchCount} stitches
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="color-row-edit"
+                    aria-label={`Change color for ${entry.symbol} ${entry.yarnLabel ?? entry.hex}`}
+                    aria-expanded={editingThis}
+                    onClick={() => openEditEditor(entry.index)}
+                  >
+                    Edit
+                  </button>
+                </div>
+                {editingThis ? (
+                  <ColorEditor
+                    key={`edit-${entry.index}-${entry.hex}`}
+                    initialHex={entry.hex}
+                    groupLabel={`Edit color for ${entry.symbol}`}
+                    applyLabel="Apply"
+                    onApply={(hex) => {
+                      applyReplace(entry.index, hex, "Custom color");
+                      setEditor(null);
+                    }}
+                    onCancel={() => setEditor(null)}
+                  />
+                ) : null}
+              </li>
+            );
+          })}
         </ol>
 
         {selected && canMerge ? (

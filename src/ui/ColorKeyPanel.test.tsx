@@ -78,15 +78,25 @@ describe("ColorKeyPanel inline palette controls", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("appends a color only when the header picker commits, not while dragging", () => {
+  it("opens an add editor with swatch, editable hex, and Add — only commits on Add", async () => {
+    const user = userEvent.setup();
     const onAddPaletteColor = vi.fn();
     renderPanel({ onAddPaletteColor });
 
-    const picker = screen.getByLabelText(/new palette color/i);
-    fireEvent.input(picker, { target: { value: "#aabbcc" } });
+    await user.click(screen.getByRole("button", { name: /add palette color/i }));
+
+    const editor = screen.getByRole("group", { name: /add palette color/i });
+    const swatch = within(editor).getByLabelText(/color swatch/i);
+    const hexField = within(editor).getByLabelText(/^hex$/i);
+
+    fireEvent.input(swatch, { target: { value: "#aabbcc" } });
     expect(onAddPaletteColor).not.toHaveBeenCalled();
 
-    fireEvent.change(picker, { target: { value: "#abcdef" } });
+    await user.clear(hexField);
+    await user.type(hexField, "abcdef");
+    expect(onAddPaletteColor).not.toHaveBeenCalled();
+
+    await user.click(within(editor).getByRole("button", { name: /^add$/i }));
     expect(onAddPaletteColor).toHaveBeenCalledTimes(1);
     expect(onAddPaletteColor).toHaveBeenCalledWith("#abcdef");
   });
@@ -94,7 +104,10 @@ describe("ColorKeyPanel inline palette controls", () => {
   it("disables + and shows a full hint at MAX_CHART_COLORS", () => {
     let chart = createBlankChart(2, 2);
     while (chart.palette.length < MAX_CHART_COLORS) {
-      chart = addChartColor(chart, `#${chart.palette.length.toString(16).padStart(6, "0")}`);
+      chart = addChartColor(
+        chart,
+        `#${chart.palette.length.toString(16).padStart(6, "0")}`,
+      );
     }
 
     renderPanel({ chart, selectedIndex: 0 });
@@ -102,13 +115,14 @@ describe("ColorKeyPanel inline palette controls", () => {
     expect(
       screen.getByRole("button", { name: /add palette color/i }),
     ).toBeDisabled();
-    expect(screen.getByLabelText(/new palette color/i)).toBeDisabled();
     expect(
-      screen.getByText(new RegExp(`palette is full \\(${MAX_CHART_COLORS} colors\\)`, "i")),
+      screen.getByText(
+        new RegExp(`palette is full \\(${MAX_CHART_COLORS} colors\\)`, "i"),
+      ),
     ).toBeInTheDocument();
   });
 
-  it("selects a row for paint without opening the edit picker as the only path", async () => {
+  it("selects a row for paint without opening the edit editor", async () => {
     const user = userEvent.setup();
     const onSelectedIndexChange = vi.fn();
     const onChartChange = vi.fn();
@@ -122,17 +136,28 @@ describe("ColorKeyPanel inline palette controls", () => {
 
     expect(onSelectedIndexChange).toHaveBeenCalledWith(1);
     expect(onChartChange).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("group", { name: /edit color for ●/i }),
+    ).not.toBeInTheDocument();
   });
 
-  it("replaces a color only when the trailing Edit picker commits", () => {
+  it("edits a row via swatch + hex and only applies on Apply", async () => {
+    const user = userEvent.setup();
     const onChartChange = vi.fn();
     renderPanel({ onChartChange, selectedIndex: null });
 
-    const picker = screen.getByLabelText(/change color for ▲/i);
-    fireEvent.input(picker, { target: { value: "#445566" } });
+    await user.click(
+      screen.getByRole("button", { name: /change color for ▲/i }),
+    );
+
+    const editor = screen.getByRole("group", { name: /edit color for ▲/i });
+    const hexField = within(editor).getByLabelText(/^hex$/i);
+
+    await user.clear(hexField);
+    await user.type(hexField, "#112233");
     expect(onChartChange).not.toHaveBeenCalled();
 
-    fireEvent.change(picker, { target: { value: "#112233" } });
+    await user.click(within(editor).getByRole("button", { name: /^apply$/i }));
 
     expect(onChartChange).toHaveBeenCalledTimes(1);
     const next = onChartChange.mock.calls[0]![0] as ColorworkChart;

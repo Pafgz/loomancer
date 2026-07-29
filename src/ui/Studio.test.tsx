@@ -436,9 +436,8 @@ describe("Studio with a blank-canvas project", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText(/new palette color/i), {
-      target: { value: "#abcdef" },
-    });
+    await user.click(screen.getByRole("button", { name: /add palette color/i }));
+    await user.click(screen.getByRole("button", { name: /^add$/i }));
     await waitFor(() => {
       expect(latest.chart?.palette).toHaveLength(2);
     });
@@ -484,9 +483,8 @@ describe("Studio with a blank-canvas project", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText(/new palette color/i), {
-      target: { value: "#abcdef" },
-    });
+    await user.click(screen.getByRole("button", { name: /add palette color/i }));
+    await user.click(screen.getByRole("button", { name: /^add$/i }));
     await waitFor(() => {
       expect(latest.chart?.palette).toHaveLength(2);
     });
