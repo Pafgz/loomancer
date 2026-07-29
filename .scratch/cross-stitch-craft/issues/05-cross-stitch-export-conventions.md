@@ -16,15 +16,15 @@
 
 ## Checklist
 
-- [ ] Cross-stitch numbers stitches and rows from the top-left (stitch 1 = left, row 1 = top)
-- [ ] Cross-stitch bolds counting lines every 10 from the top-left origin (both edges major)
-- [ ] Cross-stitch draws center row and center column guidelines at the geometric midpoint (on even counts the guide falls between stitches)
-- [ ] PDF only: title = project name; subtitle = `Cross-stitch · W × H`; cross-stitch reading hint; fixed Yarnlane footer
-- [ ] PDF only: dedicated floss-chart legend **block** under the chart (same columns: symbol, swatch, label, stitch count)
-- [ ] PNG: same grid conventions + compact color key; **no** title/subtitle/footer/reading-hint chrome; omit knitting hint
-- [ ] Knit-ready exports keep bottom-right numbering, every-5 majors, and the existing hint, byte-for-byte in behavior
-- [ ] PDF and PNG stay consistent with each other on grid conventions for both crafts
-- [ ] Single custom-sized PDF page (no A4/Letter tiling this pass)
+- [x] Cross-stitch numbers stitches and rows from the top-left (stitch 1 = left, row 1 = top)
+- [x] Cross-stitch bolds counting lines every 10 from the top-left origin (both edges major)
+- [x] Cross-stitch draws center row and center column guidelines at the geometric midpoint (on even counts the guide falls between stitches)
+- [x] PDF only: title = project name; subtitle = `Cross-stitch · W × H`; cross-stitch reading hint; fixed Yarnlane footer
+- [x] PDF only: dedicated floss-chart legend **block** under the chart (same columns: symbol, swatch, label, stitch count)
+- [x] PNG: same grid conventions + compact color key; **no** title/subtitle/footer/reading-hint chrome; omit knitting hint
+- [x] Knit-ready exports keep bottom-right numbering, every-5 majors, and the existing hint, byte-for-byte in behavior
+- [x] PDF and PNG stay consistent with each other on grid conventions for both crafts
+- [x] Single custom-sized PDF page (no A4/Letter tiling this pass)
 
 ## Notes
 
