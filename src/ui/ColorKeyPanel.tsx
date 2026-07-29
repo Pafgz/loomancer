@@ -3,6 +3,7 @@ import { MAX_CHART_COLORS } from "../chart/chart-types";
 import {
   findIndistinguishablePairs,
   mergeChartColors,
+  previewChartColor,
   rankYarnMatches,
   replaceChartColor,
 } from "../chart/palette-edits";
@@ -20,6 +21,8 @@ type ColorKeyPanelProps = {
   selectedIndex: number | null;
   onSelectedIndexChange: (index: number | null) => void;
   onChartChange: (chart: ColorworkChart) => void;
+  /** Live hex overlay for the chart canvas — null clears the preview. */
+  onPreviewChartChange?: (chart: ColorworkChart | null) => void;
   /** Adds a palette entry and arms paint on it; must not replace an existing color. */
   onAddPaletteColor: (hex: string) => void;
   onInventoryChange: (inventory: YarnColor[]) => void;
@@ -33,7 +36,7 @@ const DEFAULT_ADD_HEX = "#244b3c";
 
 /**
  * Draft color controls: native swatch + editable hex + explicit commit.
- * Swatch/hex only update local draft — Apply/Add is the sole commit path.
+ * Swatch/hex update a local draft (and optional live preview); Add/Apply commits.
  */
 function ColorEditor({
   initialHex,
@@ -41,21 +44,28 @@ function ColorEditor({
   applyLabel,
   onApply,
   onCancel,
+  onDraftChange,
 }: {
   initialHex: string;
   groupLabel: string;
   applyLabel: string;
   onApply: (hex: string) => void;
   onCancel: () => void;
+  onDraftChange?: (hex: string) => void;
 }) {
   const [swatchHex, setSwatchHex] = useState(initialHex);
   const [hexText, setHexText] = useState(initialHex);
   const normalized = normalizeHex(hexText);
   const canApply = normalized !== null;
 
+  function publishDraft(hex: string) {
+    onDraftChange?.(hex);
+  }
+
   function handleSwatchChange(value: string) {
     setSwatchHex(value);
     setHexText(value);
+    publishDraft(value);
   }
 
   function handleHexTextChange(value: string) {
@@ -63,6 +73,7 @@ function ColorEditor({
     const next = normalizeHex(value);
     if (next) {
       setSwatchHex(next);
+      publishDraft(next);
     }
   }
 
@@ -129,10 +140,12 @@ export function ColorKeyPanel({
   selectedIndex,
   onSelectedIndexChange,
   onChartChange,
+  onPreviewChartChange,
   onAddPaletteColor,
   onInventoryChange,
 }: ColorKeyPanelProps) {
   const [editor, setEditor] = useState<ColorEditorSession | null>(null);
+  const [liveEditHex, setLiveEditHex] = useState<string | null>(null);
   const [yarnName, setYarnName] = useState("");
   const [yarnHex, setYarnHex] = useState("#244b3c");
   const [yarnQuantity, setYarnQuantity] = useState("");
@@ -148,6 +161,21 @@ export function ColorKeyPanel({
     [chart],
   );
   const canMerge = Boolean(selected) && chart.palette.length > 1;
+
+  function clearPreview() {
+    setLiveEditHex(null);
+    onPreviewChartChange?.(null);
+  }
+
+  function publishEditPreview(index: number, hex: string) {
+    setLiveEditHex(hex);
+    onPreviewChartChange?.(previewChartColor(chart, index, hex));
+  }
+
+  function closeEditor() {
+    clearPreview();
+    setEditor(null);
+  }
 
   function applyReplace(paletteIndex: number, hex: string, yarnLabel?: string) {
     onChartChange(replaceChartColor(chart, paletteIndex, hex, yarnLabel));
@@ -171,10 +199,13 @@ export function ColorKeyPanel({
     if (!canAddColor) {
       return;
     }
+    clearPreview();
     setEditor({ kind: "add" });
   }
 
   function openEditEditor(index: number) {
+    const entry = chart.palette[index];
+    setLiveEditHex(entry?.hex ?? null);
     setEditor({ kind: "edit", index });
   }
 
@@ -206,9 +237,9 @@ export function ColorKeyPanel({
             applyLabel="Add"
             onApply={(hex) => {
               onAddPaletteColor(hex);
-              setEditor(null);
+              closeEditor();
             }}
-            onCancel={() => setEditor(null)}
+            onCancel={closeEditor}
           />
         ) : null}
 
@@ -216,6 +247,8 @@ export function ColorKeyPanel({
           {chart.palette.map((entry) => {
             const editingThis =
               editor?.kind === "edit" && editor.index === entry.index;
+            const displayHex =
+              editingThis && liveEditHex ? liveEditHex : entry.hex;
             return (
               <li key={entry.index} className="color-row-item">
                 <div className="color-row-main">
@@ -234,7 +267,7 @@ export function ColorKeyPanel({
                   >
                     <span
                       className="swatch color-row-swatch"
-                      style={{ background: entry.hex }}
+                      style={{ background: displayHex }}
                       aria-hidden="true"
                     >
                       <span className="color-row-symbol">{entry.symbol}</span>
@@ -243,7 +276,7 @@ export function ColorKeyPanel({
                       {entry.yarnLabel ? (
                         <span className="color-row-name">{entry.yarnLabel}</span>
                       ) : null}
-                      <span className="color-row-hex">{entry.hex}</span>
+                      <span className="color-row-hex">{displayHex}</span>
                       <span className="color-row-count">
                         {entry.stitchCount} stitches
                       </span>
@@ -265,11 +298,15 @@ export function ColorKeyPanel({
                     initialHex={entry.hex}
                     groupLabel={`Edit color for ${entry.symbol}`}
                     applyLabel="Apply"
+                    onDraftChange={(hex) =>
+                      publishEditPreview(entry.index, hex)
+                    }
                     onApply={(hex) => {
+                      clearPreview();
                       applyReplace(entry.index, hex, "Custom color");
                       setEditor(null);
                     }}
-                    onCancel={() => setEditor(null)}
+                    onCancel={closeEditor}
                   />
                 ) : null}
               </li>

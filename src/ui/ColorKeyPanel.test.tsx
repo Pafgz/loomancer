@@ -47,6 +47,7 @@ function renderPanel(
     selectedIndex: number | null;
     onSelectedIndexChange: (index: number | null) => void;
     onChartChange: (chart: ColorworkChart) => void;
+    onPreviewChartChange: (chart: ColorworkChart | null) => void;
     onAddPaletteColor: (hex: string) => void;
     onInventoryChange: (inventory: YarnColor[]) => void;
   }> = {},
@@ -57,6 +58,7 @@ function renderPanel(
     selectedIndex: overrides.selectedIndex ?? 0,
     onSelectedIndexChange: overrides.onSelectedIndexChange ?? vi.fn(),
     onChartChange: overrides.onChartChange ?? vi.fn(),
+    onPreviewChartChange: overrides.onPreviewChartChange ?? vi.fn(),
     onAddPaletteColor: overrides.onAddPaletteColor ?? vi.fn(),
     onInventoryChange: overrides.onInventoryChange ?? vi.fn(),
   };
@@ -141,10 +143,11 @@ describe("ColorKeyPanel inline palette controls", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("edits a row via swatch + hex and only applies on Apply", async () => {
+  it("edits a row via swatch + hex, previews live, and only commits on Apply", async () => {
     const user = userEvent.setup();
     const onChartChange = vi.fn();
-    renderPanel({ onChartChange, selectedIndex: null });
+    const onPreviewChartChange = vi.fn();
+    renderPanel({ onChartChange, onPreviewChartChange, selectedIndex: null });
 
     await user.click(
       screen.getByRole("button", { name: /change color for ▲/i }),
@@ -156,14 +159,37 @@ describe("ColorKeyPanel inline palette controls", () => {
     await user.clear(hexField);
     await user.type(hexField, "#112233");
     expect(onChartChange).not.toHaveBeenCalled();
+    expect(onPreviewChartChange).toHaveBeenCalled();
+    const preview = onPreviewChartChange.mock.calls.at(-1)![0] as ColorworkChart;
+    expect(preview.palette[0]?.hex).toBe("#112233");
+    expect(preview.palette[0]?.yarnLabel).toBe("Ink");
 
     await user.click(within(editor).getByRole("button", { name: /^apply$/i }));
 
+    expect(onPreviewChartChange).toHaveBeenLastCalledWith(null);
     expect(onChartChange).toHaveBeenCalledTimes(1);
     const next = onChartChange.mock.calls[0]![0] as ColorworkChart;
     expect(next.palette[0]?.hex).toBe("#112233");
     expect(next.palette[0]?.yarnLabel).toBe("Custom color");
     expect(next.cells).toEqual([0, 1, 0, 1]);
+  });
+
+  it("clears live preview when edit is cancelled", async () => {
+    const user = userEvent.setup();
+    const onPreviewChartChange = vi.fn();
+    renderPanel({ onPreviewChartChange, selectedIndex: null });
+
+    await user.click(
+      screen.getByRole("button", { name: /change color for ▲/i }),
+    );
+    const editor = screen.getByRole("group", { name: /edit color for ▲/i });
+    fireEvent.input(within(editor).getByLabelText(/color swatch/i), {
+      target: { value: "#abcdef" },
+    });
+    expect(onPreviewChartChange).toHaveBeenCalled();
+
+    await user.click(within(editor).getByRole("button", { name: /^cancel$/i }));
+    expect(onPreviewChartChange).toHaveBeenLastCalledWith(null);
   });
 
   it("shows the hex code for every palette entry", () => {
