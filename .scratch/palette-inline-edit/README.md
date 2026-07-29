@@ -1,6 +1,6 @@
 # Palette inline add / edit
 
-Status: decisions locked (grilling + impeccable shape); implementation not started.
+Status: implemented (grilling + impeccable shape + ColorKeyPanel refactor).
 
 Canonical decisions: [spec.md](./spec.md)  
 Wayfinding: [map.md](./map.md)
@@ -9,4 +9,4 @@ Wayfinding: [map.md](./map.md)
 
 Read **spec.md** before changing `src/ui/ColorKeyPanel.tsx` or related palette UX. Do not revive the separate **Add color** or **Edit {symbol}** cards unless this spec is explicitly superseded.
 
-Incumbent implementation today (pre-change): `src/ui/ColorKeyPanel.tsx` — list + separate Add/Edit cards.
+Implementation: `src/ui/ColorKeyPanel.tsx` — one Palette card with header `+`, row select, trailing Edit, selected-row merge/matches; Yarn Inventory below.

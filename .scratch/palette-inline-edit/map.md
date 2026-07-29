@@ -16,12 +16,12 @@ A confirmed UX brief for collapsing palette add/edit into the Palette panel (row
 ## Decisions so far
 
 - [Grill palette inline UX](issues/01-grill-palette-inline-ux.md) — Row selects for paint; trailing control opens color picker; `+` adds via picker-first; no separate Edit/Add cards; merge + yarn matches stay in Palette panel.
+- [Implement Palette inline add / edit](issues/02-implement-palette-inline-controls.md) — ColorKeyPanel collapsed to one Palette card; header `+`, trailing Edit, selected-row merge/matches; tests in `ColorKeyPanel.test.tsx` / `Studio.test.tsx`.
 
 ## Not yet specified
 
-- Exact merge control chrome (quiet icon vs overflow menu vs select-on-row)
-- Whether the indistinguishable-pair warning block stays visually as today (behavior stays)
-- Microcopy for disabled `+` / custom-color label (defaults proposed in spec)
+- Whether indistinguishable-pair warning block could be tucked into the Palette card (behavior stays)
+- Microcopy polish beyond “Custom color” / full-palette hint
 
 ## Out of scope
 
