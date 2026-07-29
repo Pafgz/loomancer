@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { MAX_CHART_COLORS } from "../chart/chart-types";
 import {
   findIndistinguishablePairs,
@@ -33,29 +33,13 @@ export function ColorKeyPanel({
   onAddPaletteColor,
   onInventoryChange,
 }: ColorKeyPanelProps) {
-  // While Pan is active, Edit still targets the last armed color (or palette[0]).
-  const [editFocusIndex, setEditFocusIndex] = useState(0);
-  const [customHex, setCustomHex] = useState("#244b3c");
-  const [newColorHex, setNewColorHex] = useState("#244b3c");
+  const addColorInputRef = useRef<HTMLInputElement>(null);
   const [yarnName, setYarnName] = useState("");
   const [yarnHex, setYarnHex] = useState("#244b3c");
   const [yarnQuantity, setYarnQuantity] = useState("");
   const canAddColor = chart.palette.length < MAX_CHART_COLORS;
-
-  useEffect(() => {
-    if (selectedIndex !== null) {
-      setEditFocusIndex(selectedIndex);
-    }
-  }, [selectedIndex]);
-
-  useEffect(() => {
-    setEditFocusIndex((current) =>
-      current >= chart.palette.length ? 0 : current,
-    );
-  }, [chart.palette.length]);
-
-  const editIndex = selectedIndex ?? editFocusIndex;
-  const selected = chart.palette[editIndex] ?? chart.palette[0];
+  const selected =
+    selectedIndex !== null ? (chart.palette[selectedIndex] ?? null) : null;
   const suggestions = useMemo(
     () => (selected ? rankYarnMatches(selected.hex, inventory) : []),
     [selected, inventory],
@@ -64,12 +48,10 @@ export function ColorKeyPanel({
     () => findIndistinguishablePairs(chart),
     [chart],
   );
+  const canMerge = Boolean(selected) && chart.palette.length > 1;
 
-  function applyReplace(hex: string, yarnLabel?: string) {
-    if (!selected) {
-      return;
-    }
-    onChartChange(replaceChartColor(chart, selected.index, hex, yarnLabel));
+  function applyReplace(paletteIndex: number, hex: string, yarnLabel?: string) {
+    onChartChange(replaceChartColor(chart, paletteIndex, hex, yarnLabel));
   }
 
   function handleAddYarn(event: FormEvent) {
@@ -89,10 +71,33 @@ export function ColorKeyPanel({
   return (
     <div className="color-key-panel">
       <div className="card">
-        <h3>Palette</h3>
+        <div className="palette-header">
+          <h3>Palette</h3>
+          <button
+            type="button"
+            className="palette-add-button"
+            aria-label="Add palette color"
+            disabled={!canAddColor}
+            onClick={() => addColorInputRef.current?.click()}
+          >
+            +
+          </button>
+          <input
+            ref={addColorInputRef}
+            type="color"
+            className="visually-hidden"
+            defaultValue="#244b3c"
+            aria-label="New palette color"
+            disabled={!canAddColor}
+            onChange={(event) => onAddPaletteColor(event.target.value)}
+          />
+        </div>
+        {!canAddColor ? (
+          <p className="muted">Palette is full ({MAX_CHART_COLORS} colors).</p>
+        ) : null}
         <ol className="chart-key" aria-label="Editable color key">
           {chart.palette.map((entry) => (
-            <li key={entry.index}>
+            <li key={entry.index} className="color-row-item">
               <button
                 type="button"
                 className={
@@ -122,59 +127,21 @@ export function ColorKeyPanel({
                   </span>
                 </span>
               </button>
+              <input
+                type="color"
+                className="color-row-edit"
+                value={entry.hex}
+                aria-label={`Change color for ${entry.symbol} ${entry.yarnLabel ?? entry.hex}`}
+                onChange={(event) =>
+                  applyReplace(entry.index, event.target.value, "Custom color")
+                }
+              />
             </li>
           ))}
         </ol>
-      </div>
 
-      <div className="card">
-        <h3>Add color</h3>
-        <label>
-          New color
-          <input
-            type="color"
-            value={newColorHex}
-            onChange={(event) => setNewColorHex(event.target.value)}
-            aria-label="New palette color"
-            disabled={!canAddColor}
-          />
-        </label>
-        <button
-          type="button"
-          disabled={!canAddColor}
-          onClick={() => onAddPaletteColor(newColorHex)}
-        >
-          Add color to key
-        </button>
-        {!canAddColor ? (
-          <p className="muted">Palette is full ({MAX_CHART_COLORS} colors).</p>
-        ) : (
-          <p className="muted">
-            Adds a new key entry and selects it for painting. Does not change
-            existing colors.
-          </p>
-        )}
-      </div>
-
-      {selected ? (
-        <div className="palette-actions card">
-          <h3>Edit {selected.symbol}</h3>
-          <label>
-            Replacement color
-            <input
-              type="color"
-              value={customHex}
-              onChange={(event) => setCustomHex(event.target.value)}
-              aria-label="Custom replacement color"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={() => applyReplace(customHex, "Custom color")}
-          >
-            Replace with custom color
-          </button>
-          <label>
+        {selected && canMerge ? (
+          <label className="palette-merge">
             Merge into
             <select
               aria-label="Merge into color"
@@ -182,7 +149,9 @@ export function ColorKeyPanel({
               onChange={(event) => {
                 const target = Number(event.target.value);
                 if (Number.isFinite(target)) {
-                  onChartChange(mergeChartColors(chart, selected.index, target));
+                  onChartChange(
+                    mergeChartColors(chart, selected.index, target),
+                  );
                   onSelectedIndexChange(0);
                 }
                 event.target.value = "";
@@ -200,46 +169,51 @@ export function ColorKeyPanel({
                 ))}
             </select>
           </label>
+        ) : null}
 
-          <p className="section-label">Yarn matches</p>
-          <p className="muted">
-            Suggestions are not applied until you confirm. Quantity is
-            informational only.
-          </p>
-          {suggestions.length === 0 ? (
-            <p className="muted">Add Yarn Colors below to see matches.</p>
-          ) : (
-            <ul className="match-list">
-              {suggestions.slice(0, 3).map((suggestion) => (
-                <li key={suggestion.yarn.id}>
-                  <span
-                    className="swatch"
-                    style={{ background: suggestion.yarn.displayColor }}
-                    aria-hidden="true"
-                  />
-                  <span>
-                    {suggestion.yarn.name} · {suggestion.quality}
-                    {suggestion.yarn.quantity
-                      ? ` · qty ${suggestion.yarn.quantity}`
-                      : ""}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      applyReplace(
-                        suggestion.yarn.displayColor,
-                        suggestion.yarn.name,
-                      )
-                    }
-                  >
-                    Use this yarn
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ) : null}
+        {selected ? (
+          <div className="palette-matches">
+            <p className="section-label">Yarn matches</p>
+            <p className="muted">
+              Suggestions are not applied until you confirm. Quantity is
+              informational only.
+            </p>
+            {suggestions.length === 0 ? (
+              <p className="muted">Add Yarn Colors below to see matches.</p>
+            ) : (
+              <ul className="match-list">
+                {suggestions.slice(0, 3).map((suggestion) => (
+                  <li key={suggestion.yarn.id}>
+                    <span
+                      className="swatch"
+                      style={{ background: suggestion.yarn.displayColor }}
+                      aria-hidden="true"
+                    />
+                    <span>
+                      {suggestion.yarn.name} · {suggestion.quality}
+                      {suggestion.yarn.quantity
+                        ? ` · qty ${suggestion.yarn.quantity}`
+                        : ""}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        applyReplace(
+                          selected.index,
+                          suggestion.yarn.displayColor,
+                          suggestion.yarn.name,
+                        )
+                      }
+                    >
+                      Use this yarn
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : null}
+      </div>
 
       {similarPairs.length > 0 ? (
         <div className="similar-warning" role="status">

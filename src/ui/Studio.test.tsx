@@ -280,6 +280,11 @@ describe("Studio image controls", () => {
       new File([tinyPng], "fox.png", { type: "image/png" }),
     );
 
+    const keyRow = await screen.findByRole("button", {
+      name: /select ▲/i,
+    });
+    await user.click(keyRow);
+
     const useYarn = await screen.findByRole("button", {
       name: /use this yarn/i,
     });
@@ -431,7 +436,9 @@ describe("Studio with a blank-canvas project", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /add color to key/i }));
+    fireEvent.change(screen.getByLabelText(/new palette color/i), {
+      target: { value: "#abcdef" },
+    });
     await waitFor(() => {
       expect(latest.chart?.palette).toHaveLength(2);
     });
@@ -440,7 +447,7 @@ describe("Studio with a blank-canvas project", () => {
     expect(
       screen.getByRole("button", { name: /paint with ● added color/i }),
     ).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("heading", { name: /edit ●/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/merge into color/i)).toBeInTheDocument();
 
     // The keyboard path stands in for a pointer here, and is the accessible
     // route in its own right.
@@ -477,7 +484,9 @@ describe("Studio with a blank-canvas project", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /add color to key/i }));
+    fireEvent.change(screen.getByLabelText(/new palette color/i), {
+      target: { value: "#abcdef" },
+    });
     await waitFor(() => {
       expect(latest.chart?.palette).toHaveLength(2);
     });
@@ -493,7 +502,7 @@ describe("Studio with a blank-canvas project", () => {
     expect(
       screen.getByRole("group", { name: /chart paint area/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /edit ●/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/merge into color/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^pan$/i }));
 
@@ -504,8 +513,8 @@ describe("Studio with a blank-canvas project", () => {
     expect(
       screen.getByRole("group", { name: /chart pan and zoom area/i }),
     ).toBeInTheDocument();
-    // Edit keeps the last armed color while Pan clears the shared highlight.
-    expect(screen.getByRole("heading", { name: /edit ●/i })).toBeInTheDocument();
+    // Pan clears shared selection — merge/matches hide until a row is armed again.
+    expect(screen.queryByLabelText(/merge into color/i)).not.toBeInTheDocument();
   });
 
   it("asks before generating over a hand-drawn chart when a photo arrives", async () => {

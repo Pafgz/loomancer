@@ -1,7 +1,7 @@
 # 02 — Implement Palette inline add / edit
 
 Type: task  
-Status: open  
+Status: claimed  
 Blocked by: 01
 
 **What to build:** Refactor `ColorKeyPanel` so Palette owns add (`+` header), row select, trailing color Edit, merge, and yarn matches — removing the standalone Add color and Edit cards. Follow [spec.md](../spec.md) decisions D1–D10.
