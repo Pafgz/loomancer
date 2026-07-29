@@ -78,6 +78,20 @@ export function replaceChartColor(
   });
 }
 
+/** Hex-only overlay for live chart preview — does not touch labels or counts. */
+export function previewChartColor(
+  chart: ColorworkChart,
+  paletteIndex: number,
+  hex: string,
+): ColorworkChart {
+  return {
+    ...chart,
+    palette: chart.palette.map((entry) =>
+      entry.index === paletteIndex ? { ...entry, hex } : entry,
+    ),
+  };
+}
+
 export function mergeChartColors(
   chart: ColorworkChart,
   sourceIndex: number,

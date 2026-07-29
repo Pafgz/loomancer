@@ -96,6 +96,9 @@ export function Studio({
   const [selectedPaletteIndex, setSelectedPaletteIndex] = useState<
     number | null
   >(null);
+  const [previewChart, setPreviewChart] = useState<
+    NonNullable<PatternProject["chart"]> | null
+  >(null);
   const generationIdRef = useRef(0);
   const compact = useMediaQuery(COMPACT_LAYOUT);
 
@@ -169,6 +172,11 @@ export function Studio({
       current !== null && current >= paletteSize ? null : current,
     );
   }, [paletteSize]);
+
+  // Drop ephemeral live preview when the committed chart changes (undo, regen).
+  useEffect(() => {
+    setPreviewChart(null);
+  }, [draft.chart]);
 
   useEffect(() => {
     if (!draft.sourceImage) {
@@ -687,7 +695,7 @@ export function Studio({
           <h2 className="visually-hidden">Colorwork Chart</h2>
           {draft.chart ? (
             <ChartView
-              chart={draft.chart}
+              chart={previewChart ?? draft.chart}
               isGenerating={isGenerating}
               showSymbols={draft.showChartSymbols}
               onShowSymbolsChange={(show) => {
@@ -722,8 +730,10 @@ export function Studio({
               selectedIndex={selectedPaletteIndex}
               onSelectedIndexChange={setSelectedPaletteIndex}
               onChartChange={(chart) => {
+                setPreviewChart(null);
                 void applyPaletteChart(chart);
               }}
+              onPreviewChartChange={setPreviewChart}
               onAddPaletteColor={(hex) => {
                 void handleAddPaletteColor(hex);
               }}

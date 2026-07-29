@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { MAX_CHART_COLORS } from "../chart/chart-types";
 import {
   findIndistinguishablePairs,
   mergeChartColors,
+  previewChartColor,
   rankYarnMatches,
   replaceChartColor,
 } from "../chart/palette-edits";
@@ -11,6 +12,7 @@ import {
   type ColorworkChart,
   type YarnColor,
 } from "../domain/models";
+import { normalizeHex } from "./color-hex";
 
 type ColorKeyPanelProps = {
   chart: ColorworkChart;
@@ -19,10 +21,118 @@ type ColorKeyPanelProps = {
   selectedIndex: number | null;
   onSelectedIndexChange: (index: number | null) => void;
   onChartChange: (chart: ColorworkChart) => void;
+  /** Live hex overlay for the chart canvas — null clears the preview. */
+  onPreviewChartChange?: (chart: ColorworkChart | null) => void;
   /** Adds a palette entry and arms paint on it; must not replace an existing color. */
   onAddPaletteColor: (hex: string) => void;
   onInventoryChange: (inventory: YarnColor[]) => void;
 };
+
+type ColorEditorSession =
+  | { kind: "add" }
+  | { kind: "edit"; index: number };
+
+const DEFAULT_ADD_HEX = "#244b3c";
+
+/**
+ * Draft color controls: native swatch + editable hex + explicit commit.
+ * Swatch/hex update a local draft (and optional live preview); Add/Apply commits.
+ */
+function ColorEditor({
+  initialHex,
+  groupLabel,
+  applyLabel,
+  onApply,
+  onCancel,
+  onDraftChange,
+}: {
+  initialHex: string;
+  groupLabel: string;
+  applyLabel: string;
+  onApply: (hex: string) => void;
+  onCancel: () => void;
+  onDraftChange?: (hex: string) => void;
+}) {
+  const [swatchHex, setSwatchHex] = useState(initialHex);
+  const [hexText, setHexText] = useState(initialHex);
+  const normalized = normalizeHex(hexText);
+  const canApply = normalized !== null;
+
+  function publishDraft(hex: string) {
+    onDraftChange?.(hex);
+  }
+
+  function handleSwatchChange(value: string) {
+    setSwatchHex(value);
+    setHexText(value);
+    publishDraft(value);
+  }
+
+  function handleHexTextChange(value: string) {
+    setHexText(value);
+    const next = normalizeHex(value);
+    if (next) {
+      setSwatchHex(next);
+      publishDraft(next);
+    }
+  }
+
+  function handleApply() {
+    if (!normalized) {
+      return;
+    }
+    onApply(normalized);
+  }
+
+  return (
+    <div className="color-editor" role="group" aria-label={groupLabel}>
+      <input
+        type="color"
+        className="color-editor-swatch"
+        value={swatchHex}
+        aria-label="Color swatch"
+        onChange={(event) => handleSwatchChange(event.target.value)}
+      />
+      <input
+        type="text"
+        className="color-editor-hex"
+        value={hexText}
+        aria-label="Hex"
+        inputMode="text"
+        autoCapitalize="characters"
+        autoCorrect="off"
+        spellCheck={false}
+        placeholder="#000000"
+        onChange={(event) => handleHexTextChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            handleApply();
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            onCancel();
+          }
+        }}
+      />
+      <button
+        type="button"
+        className="color-editor-apply"
+        disabled={!canApply}
+        onClick={handleApply}
+      >
+        {applyLabel}
+      </button>
+      <button
+        type="button"
+        className="color-editor-cancel"
+        onClick={onCancel}
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
 
 export function ColorKeyPanel({
   chart,
@@ -30,32 +140,18 @@ export function ColorKeyPanel({
   selectedIndex,
   onSelectedIndexChange,
   onChartChange,
+  onPreviewChartChange,
   onAddPaletteColor,
   onInventoryChange,
 }: ColorKeyPanelProps) {
-  // While Pan is active, Edit still targets the last armed color (or palette[0]).
-  const [editFocusIndex, setEditFocusIndex] = useState(0);
-  const [customHex, setCustomHex] = useState("#244b3c");
-  const [newColorHex, setNewColorHex] = useState("#244b3c");
+  const [editor, setEditor] = useState<ColorEditorSession | null>(null);
+  const [liveEditHex, setLiveEditHex] = useState<string | null>(null);
   const [yarnName, setYarnName] = useState("");
   const [yarnHex, setYarnHex] = useState("#244b3c");
   const [yarnQuantity, setYarnQuantity] = useState("");
   const canAddColor = chart.palette.length < MAX_CHART_COLORS;
-
-  useEffect(() => {
-    if (selectedIndex !== null) {
-      setEditFocusIndex(selectedIndex);
-    }
-  }, [selectedIndex]);
-
-  useEffect(() => {
-    setEditFocusIndex((current) =>
-      current >= chart.palette.length ? 0 : current,
-    );
-  }, [chart.palette.length]);
-
-  const editIndex = selectedIndex ?? editFocusIndex;
-  const selected = chart.palette[editIndex] ?? chart.palette[0];
+  const selected =
+    selectedIndex !== null ? (chart.palette[selectedIndex] ?? null) : null;
   const suggestions = useMemo(
     () => (selected ? rankYarnMatches(selected.hex, inventory) : []),
     [selected, inventory],
@@ -64,12 +160,25 @@ export function ColorKeyPanel({
     () => findIndistinguishablePairs(chart),
     [chart],
   );
+  const canMerge = Boolean(selected) && chart.palette.length > 1;
 
-  function applyReplace(hex: string, yarnLabel?: string) {
-    if (!selected) {
-      return;
-    }
-    onChartChange(replaceChartColor(chart, selected.index, hex, yarnLabel));
+  function clearPreview() {
+    setLiveEditHex(null);
+    onPreviewChartChange?.(null);
+  }
+
+  function publishEditPreview(index: number, hex: string) {
+    setLiveEditHex(hex);
+    onPreviewChartChange?.(previewChartColor(chart, index, hex));
+  }
+
+  function closeEditor() {
+    clearPreview();
+    setEditor(null);
+  }
+
+  function applyReplace(paletteIndex: number, hex: string, yarnLabel?: string) {
+    onChartChange(replaceChartColor(chart, paletteIndex, hex, yarnLabel));
   }
 
   function handleAddYarn(event: FormEvent) {
@@ -86,95 +195,127 @@ export function ColorKeyPanel({
     setYarnQuantity("");
   }
 
+  function openAddEditor() {
+    if (!canAddColor) {
+      return;
+    }
+    clearPreview();
+    setEditor({ kind: "add" });
+  }
+
+  function openEditEditor(index: number) {
+    const entry = chart.palette[index];
+    setLiveEditHex(entry?.hex ?? null);
+    setEditor({ kind: "edit", index });
+  }
+
   return (
     <div className="color-key-panel">
       <div className="card">
-        <h3>Palette</h3>
-        <ol className="chart-key" aria-label="Editable color key">
-          {chart.palette.map((entry) => (
-            <li key={entry.index}>
-              <button
-                type="button"
-                className={
-                  selectedIndex !== null && entry.index === selectedIndex
-                    ? "color-row selected"
-                    : "color-row"
-                }
-                aria-pressed={
-                  selectedIndex !== null && entry.index === selectedIndex
-                }
-                aria-label={`Select ${entry.symbol} ${entry.yarnLabel ?? entry.hex}`}
-                onClick={() => onSelectedIndexChange(entry.index)}
-              >
-                <span
-                  className="swatch color-row-swatch"
-                  style={{ background: entry.hex }}
-                  aria-hidden="true"
-                >
-                  <span className="color-row-symbol">{entry.symbol}</span>
-                </span>
-                <span className="color-row-meta">
-                  <span className="color-row-name">
-                    {entry.yarnLabel ?? entry.hex}
-                  </span>
-                  <span className="color-row-count">
-                    {entry.stitchCount} stitches
-                  </span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ol>
-      </div>
-
-      <div className="card">
-        <h3>Add color</h3>
-        <label>
-          New color
-          <input
-            type="color"
-            value={newColorHex}
-            onChange={(event) => setNewColorHex(event.target.value)}
-            aria-label="New palette color"
-            disabled={!canAddColor}
-          />
-        </label>
-        <button
-          type="button"
-          disabled={!canAddColor}
-          onClick={() => onAddPaletteColor(newColorHex)}
-        >
-          Add color to key
-        </button>
-        {!canAddColor ? (
-          <p className="muted">Palette is full ({MAX_CHART_COLORS} colors).</p>
-        ) : (
-          <p className="muted">
-            Adds a new key entry and selects it for painting. Does not change
-            existing colors.
-          </p>
-        )}
-      </div>
-
-      {selected ? (
-        <div className="palette-actions card">
-          <h3>Edit {selected.symbol}</h3>
-          <label>
-            Replacement color
-            <input
-              type="color"
-              value={customHex}
-              onChange={(event) => setCustomHex(event.target.value)}
-              aria-label="Custom replacement color"
-            />
-          </label>
+        <div className="palette-header">
+          <h3>Palette</h3>
           <button
             type="button"
-            onClick={() => applyReplace(customHex, "Custom color")}
+            className="palette-add-button"
+            aria-label="Add palette color"
+            aria-expanded={editor?.kind === "add"}
+            disabled={!canAddColor}
+            onClick={openAddEditor}
           >
-            Replace with custom color
+            +
           </button>
-          <label>
+        </div>
+        {!canAddColor ? (
+          <p className="muted">Palette is full ({MAX_CHART_COLORS} colors).</p>
+        ) : null}
+
+        {editor?.kind === "add" ? (
+          <ColorEditor
+            key="add"
+            initialHex={DEFAULT_ADD_HEX}
+            groupLabel="Add palette color"
+            applyLabel="Add"
+            onApply={(hex) => {
+              onAddPaletteColor(hex);
+              closeEditor();
+            }}
+            onCancel={closeEditor}
+          />
+        ) : null}
+
+        <ol className="chart-key" aria-label="Editable color key">
+          {chart.palette.map((entry) => {
+            const editingThis =
+              editor?.kind === "edit" && editor.index === entry.index;
+            const displayHex =
+              editingThis && liveEditHex ? liveEditHex : entry.hex;
+            return (
+              <li key={entry.index} className="color-row-item">
+                <div className="color-row-main">
+                  <button
+                    type="button"
+                    className={
+                      selectedIndex !== null && entry.index === selectedIndex
+                        ? "color-row selected"
+                        : "color-row"
+                    }
+                    aria-pressed={
+                      selectedIndex !== null && entry.index === selectedIndex
+                    }
+                    aria-label={`Select ${entry.symbol} ${entry.yarnLabel ?? entry.hex}`}
+                    onClick={() => onSelectedIndexChange(entry.index)}
+                  >
+                    <span
+                      className="swatch color-row-swatch"
+                      style={{ background: displayHex }}
+                      aria-hidden="true"
+                    >
+                      <span className="color-row-symbol">{entry.symbol}</span>
+                    </span>
+                    <span className="color-row-meta">
+                      {entry.yarnLabel ? (
+                        <span className="color-row-name">{entry.yarnLabel}</span>
+                      ) : null}
+                      <span className="color-row-hex">{displayHex}</span>
+                      <span className="color-row-count">
+                        {entry.stitchCount} stitches
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="color-row-edit"
+                    aria-label={`Change color for ${entry.symbol} ${entry.yarnLabel ?? entry.hex}`}
+                    aria-expanded={editingThis}
+                    onClick={() => openEditEditor(entry.index)}
+                  >
+                    Edit
+                  </button>
+                </div>
+                {editingThis ? (
+                  <ColorEditor
+                    key={`edit-${entry.index}-${entry.hex}`}
+                    initialHex={entry.hex}
+                    groupLabel={`Edit color for ${entry.symbol}`}
+                    applyLabel="Apply"
+                    onDraftChange={(hex) =>
+                      publishEditPreview(entry.index, hex)
+                    }
+                    onApply={(hex) => {
+                      clearPreview();
+                      applyReplace(entry.index, hex, "Custom color");
+                      setEditor(null);
+                    }}
+                    onCancel={closeEditor}
+                  />
+                ) : null}
+              </li>
+            );
+          })}
+        </ol>
+
+        {selected && canMerge ? (
+          <label className="palette-merge">
             Merge into
             <select
               aria-label="Merge into color"
@@ -182,7 +323,9 @@ export function ColorKeyPanel({
               onChange={(event) => {
                 const target = Number(event.target.value);
                 if (Number.isFinite(target)) {
-                  onChartChange(mergeChartColors(chart, selected.index, target));
+                  onChartChange(
+                    mergeChartColors(chart, selected.index, target),
+                  );
                   onSelectedIndexChange(0);
                 }
                 event.target.value = "";
@@ -195,51 +338,59 @@ export function ColorKeyPanel({
                 .filter((entry) => entry.index !== selected.index)
                 .map((entry) => (
                   <option key={entry.index} value={entry.index}>
-                    {entry.symbol} {entry.yarnLabel ?? entry.hex}
+                    {entry.symbol}{" "}
+                    {entry.yarnLabel
+                      ? `${entry.yarnLabel} (${entry.hex})`
+                      : entry.hex}
                   </option>
                 ))}
             </select>
           </label>
+        ) : null}
 
-          <p className="section-label">Yarn matches</p>
-          <p className="muted">
-            Suggestions are not applied until you confirm. Quantity is
-            informational only.
-          </p>
-          {suggestions.length === 0 ? (
-            <p className="muted">Add Yarn Colors below to see matches.</p>
-          ) : (
-            <ul className="match-list">
-              {suggestions.slice(0, 3).map((suggestion) => (
-                <li key={suggestion.yarn.id}>
-                  <span
-                    className="swatch"
-                    style={{ background: suggestion.yarn.displayColor }}
-                    aria-hidden="true"
-                  />
-                  <span>
-                    {suggestion.yarn.name} · {suggestion.quality}
-                    {suggestion.yarn.quantity
-                      ? ` · qty ${suggestion.yarn.quantity}`
-                      : ""}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      applyReplace(
-                        suggestion.yarn.displayColor,
-                        suggestion.yarn.name,
-                      )
-                    }
-                  >
-                    Use this yarn
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ) : null}
+        {selected ? (
+          <div className="palette-matches">
+            <p className="section-label">Yarn matches</p>
+            <p className="muted">
+              Suggestions are not applied until you confirm. Quantity is
+              informational only.
+            </p>
+            {suggestions.length === 0 ? (
+              <p className="muted">Add Yarn Colors below to see matches.</p>
+            ) : (
+              <ul className="match-list">
+                {suggestions.slice(0, 3).map((suggestion) => (
+                  <li key={suggestion.yarn.id}>
+                    <span
+                      className="swatch"
+                      style={{ background: suggestion.yarn.displayColor }}
+                      aria-hidden="true"
+                    />
+                    <span>
+                      {suggestion.yarn.name} · {suggestion.quality}
+                      {suggestion.yarn.quantity
+                        ? ` · qty ${suggestion.yarn.quantity}`
+                        : ""}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        applyReplace(
+                          selected.index,
+                          suggestion.yarn.displayColor,
+                          suggestion.yarn.name,
+                        )
+                      }
+                    >
+                      Use this yarn
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : null}
+      </div>
 
       {similarPairs.length > 0 ? (
         <div className="similar-warning" role="status">

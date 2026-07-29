@@ -7,6 +7,7 @@ import {
   mergeChartColors,
   paintChartCell,
   paintChartCells,
+  previewChartColor,
   qualitativeDistance,
   rankYarnMatches,
   replaceChartColor,
@@ -31,6 +32,15 @@ describe("palette edits", () => {
     expect(next.palette[1]?.yarnLabel).toBe("Forest green");
     expect(next.palette[1]?.stitchCount).toBe(5);
     expect(next.cells.filter((cell) => cell === 1)).toHaveLength(5);
+  });
+
+  it("previews a hex change without rewriting labels or cells", () => {
+    const source = sampleChart();
+    const next = previewChartColor(source, 0, "#ff00aa");
+    expect(next.palette[0]?.hex).toBe("#ff00aa");
+    expect(next.palette[0]?.yarnLabel).toBeUndefined();
+    expect(next.palette[0]?.stitchCount).toBe(3);
+    expect(next.cells).toEqual(source.cells);
   });
 
   it("merges one chart color into another and reindexes cells", () => {

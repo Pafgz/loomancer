@@ -1048,12 +1048,64 @@ small {
   min-width: 0;
 }
 
+.palette-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.palette-header h3 {
+  margin: 0;
+}
+
+.palette-add-button {
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.palette-add-button:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.palette-add-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .swatch {
   width: 1.5rem;
   height: 1.5rem;
   border-radius: var(--radius-sm);
   border: 1px solid rgb(0 0 0 / 0.15);
   flex-shrink: 0;
+}
+
+.color-row-item {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.color-row-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sp-2);
+  align-items: center;
+  min-width: 0;
 }
 
 .color-row {
@@ -1114,6 +1166,15 @@ small {
   color: var(--ink);
 }
 
+.color-row-hex {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-transform: uppercase;
+}
+
 .color-row-count {
   font-size: 0.75rem;
   font-weight: 500;
@@ -1131,21 +1192,139 @@ small {
   background: var(--accent-soft);
 }
 
-.palette-actions,
+.color-row-edit {
+  min-height: 2.25rem;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.color-row-edit:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.color-editor {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) auto auto;
+  gap: var(--sp-2);
+  align-items: center;
+  margin: 0 0 var(--sp-3);
+  padding: var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.color-row-item .color-editor {
+  margin: 0;
+}
+
+.color-editor-swatch {
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: var(--sp-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+
+.color-editor-swatch::-webkit-color-swatch-wrapper {
+  padding: var(--sp-1);
+}
+
+.color-editor-swatch::-webkit-color-swatch {
+  border: none;
+  border-radius: var(--radius-sm);
+}
+
+.color-editor-hex {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.color-editor-apply,
+.color-editor-cancel {
+  min-height: 2.25rem;
+  padding: 0 var(--sp-3);
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.color-editor-apply {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.color-editor-apply:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.color-editor-cancel {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+@media (max-width: 40rem) {
+  .color-editor {
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+  }
+
+  .color-editor-apply,
+  .color-editor-cancel {
+    min-height: 2.75rem;
+  }
+}
+
+.palette-merge,
+.palette-matches {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.palette-merge {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.palette-matches .section-label {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .yarn-form,
 .similar-warning {
   display: grid;
   gap: var(--sp-3);
 }
 
-.palette-actions h3,
 .yarn-form h3 {
   margin: 0;
   font-size: 0.875rem;
   font-weight: 600;
 }
 
-.palette-actions .section-label,
 .yarn-form .section-label {
   margin: var(--sp-2) 0 0;
   font-size: 0.7rem;
@@ -1155,7 +1334,6 @@ small {
   color: var(--muted);
 }
 
-.palette-actions label,
 .yarn-form label {
   display: grid;
   gap: var(--sp-2);
@@ -1408,6 +1586,17 @@ small {
 
   .color-row {
     min-height: 3rem;
+  }
+
+  .color-row-edit,
+  .color-editor-apply,
+  .color-editor-cancel {
+    min-height: 2.75rem;
+  }
+
+  .color-editor-swatch {
+    width: 2.75rem;
+    height: 2.75rem;
   }
 }
 
