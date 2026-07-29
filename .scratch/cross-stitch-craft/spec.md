@@ -15,9 +15,9 @@ Cross-stitch reuses the existing palette, symbols, and color key. No thread cata
 ## User Stories
 
 1. As a Stitcher, I want to choose Cross-stitch when creating a Pattern Project, so that the chart follows my craft's conventions.
-2. As a Stitcher, I want my exported chart numbered from the top-left with center markers, so that I can start stitching from the middle the way patterns expect.
+2. As a Stitcher, I want my Stitch-ready Pattern numbered from the top-left with center guidelines, so that I can start stitching from the middle the way patterns expect.
 3. As a Stitcher, I want bold counting lines every 10 squares, so that counting matches standard cross-stitch charts.
-4. As a Stitcher, I want no knitting reading hint on my chart, so that I am not told to read right to left.
+4. As a Stitcher, I want a PDF with cross-stitch packaging and hint (not the knitting reading hint), and a compact PNG without document chrome, so that exports match how I work on paper vs on a device.
 5. As a Knitter, I want my existing projects to keep knitting conventions, so that nothing I already made changes meaning.
 6. As a Knitter or Stitcher, I want to start a Pattern Project from a blank grid with a chosen size and background color, so that I can design a motif without a photo.
 7. As a Knitter or Stitcher, I want to paint an individual Chart Cell with a palette color, so that I can fix conversion artifacts and draw by hand.
@@ -29,7 +29,7 @@ Cross-stitch reuses the existing palette, symbols, and color key. No thread cata
 
 - Add `craftType: "knitting" | "cross-stitch"` to `PatternProject`; default `"knitting"` so existing records are unchanged. Bump `PATTERN_PROJECT_SCHEMA_VERSION` and default the field in `fromStored`.
 - Craft is chosen at project creation and is not switchable in this pass — switching would silently reinterpret an existing chart.
-- Export conventions become craft-driven in `src/export/chart-export.ts`, which already owns the shared coordinate and grid helpers used by both PNG and PDF. Cross-stitch: origin top-left, major lines every 10, center markers, no reading hint. Knitting keeps today's behavior exactly.
+- Export conventions become craft-driven in `src/export/chart-export.ts`, which already owns the shared coordinate and grid helpers used by both PNG and PDF. Cross-stitch produces a **Stitch-ready Pattern**: top-left origin, majors every 10, geometric center guidelines, PDF packaging (title / `Cross-stitch · W × H` subtitle / craft hint / Yarnlane footer / dedicated floss-chart legend block), PNG with the same grid + compact color key and no document chrome. Knitting **Knit-ready Pattern** behavior stays exactly as today.
 - Blank canvas creates a `ColorworkChart` of the project's `chartWidth` × `chartHeight` filled with one palette entry. Projects already persist without `sourceImage`, so no schema work is needed beyond the chart itself.
 - Cell painting adds a `paintChartCell` helper next to the existing palette operations in `src/chart/palette-edits.ts`, reusing the private `recountPalette` pattern so `stitchCount` stays accurate.
 - Painting reuses Studio's existing whole-chart undo snapshots. A drag is **one** undo entry, not one per cell.
@@ -39,7 +39,7 @@ Cross-stitch reuses the existing palette, symbols, and color key. No thread cata
 ## Testing Decisions
 
 - Pure helpers get direct unit tests: `paintChartCell` (cell changes, stitch counts stay summed to width × height, out-of-range is a no-op) and the pointer-to-cell inverse (round-trips against the forward mapping at several scales and pan offsets).
-- Export conventions are asserted per craft: cross-stitch numbers from the top-left, marks center row and column, bolds every 10, and omits the knitting hint; knitting output is unchanged.
+- Export conventions are asserted per craft: cross-stitch numbers from the top-left, geometric center guidelines, majors every 10, PDF packaging + craft hint, PNG without hint/chrome; knitting output is unchanged.
 - A Studio journey covers blank-canvas creation through painting a cell to undo.
 
 ## Out of Scope
