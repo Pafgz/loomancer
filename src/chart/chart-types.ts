@@ -1,5 +1,5 @@
 export const MIN_CHART_COLORS = 2;
-export const MAX_CHART_COLORS = 12;
+export const MAX_CHART_COLORS = 50;
 export const DEFAULT_CHART_COLORS = 6;
 export const MIN_DETAIL = 1;
 export const MAX_DETAIL = 10;
@@ -9,6 +9,10 @@ export const MAX_LONG_EDGE_STITCHES = 150;
 export const MIN_CHART_DIMENSION = 1;
 export const MAX_CHART_DIMENSION = 300;
 
+/**
+ * Distinct chart glyphs for the first fifty palette slots. Beyond that length,
+ * `chartSymbolForIndex` falls back to decimal labels.
+ */
 export const CHART_SYMBOLS = [
   "▲",
   "●",
@@ -22,7 +26,49 @@ export const CHART_SYMBOLS = [
   "◇",
   "*",
   "✦",
+  "A",
+  "B",
+  "C",
+  "D",
+  "E",
+  "F",
+  "G",
+  "H",
+  "I",
+  "J",
+  "K",
+  "L",
+  "M",
+  "N",
+  "O",
+  "P",
+  "Q",
+  "R",
+  "S",
+  "T",
+  "U",
+  "V",
+  "W",
+  "X",
+  "Y",
+  "Z",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "0",
+  "∨",
+  "∧",
 ] as const;
+
+export function chartSymbolForIndex(index: number): string {
+  return CHART_SYMBOLS[index] ?? String(index + 1);
+}
 
 export type RgbaImage = {
   width: number;

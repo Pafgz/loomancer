@@ -109,6 +109,13 @@ export function App({ repository }: AppProps) {
 
   async function handleInventoryChange(next: YarnColor[]) {
     try {
+      const previous = inventory;
+      const nextIds = new Set(next.map((yarn) => yarn.id));
+      for (const yarn of previous) {
+        if (!nextIds.has(yarn.id)) {
+          await repository.deleteYarnColor(yarn.id);
+        }
+      }
       for (const yarn of next) {
         await repository.saveYarnColor(yarn);
       }

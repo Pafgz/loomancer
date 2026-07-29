@@ -105,7 +105,7 @@ describe("generateColorworkChart", () => {
     }
   });
 
-  it("clamps invalid palette bounds to the supported 2–12 range", () => {
+  it("clamps invalid palette bounds to the supported 2–50 range", () => {
     const tooLow = generateColorworkChart({
       image: splitImage(20, 20),
       width: 4,
@@ -116,10 +116,10 @@ describe("generateColorworkChart", () => {
       image: splitImage(20, 20),
       width: 4,
       height: 4,
-      maxColors: 40,
+      maxColors: 80,
     });
 
     expect(tooLow.palette.length).toBeLessThanOrEqual(2);
-    expect(tooHigh.palette.length).toBeLessThanOrEqual(12);
+    expect(tooHigh.palette.length).toBeLessThanOrEqual(50);
   });
 });

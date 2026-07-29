@@ -101,10 +101,15 @@
   box-sizing: border-box;
 }
 
+html {
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   min-width: 20rem;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
@@ -229,6 +234,8 @@ input[type="color"] {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .logo {
@@ -310,8 +317,18 @@ small {
 .home,
 .studio {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
+}
+
+/* Studio owns the viewport so panes scroll inside it; home still scrolls the page. */
+.studio {
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
 }
 
 .home-header,
@@ -320,7 +337,10 @@ small {
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-4);
-  padding: var(--sp-3) var(--sp-5);
+  flex-shrink: 0;
+  padding: max(var(--sp-3), env(safe-area-inset-top))
+    max(var(--sp-5), env(safe-area-inset-right)) var(--sp-3)
+    max(var(--sp-5), env(safe-area-inset-left));
   border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   backdrop-filter: blur(8px);
@@ -331,8 +351,14 @@ small {
 
 /* Align home chrome with the 64rem project column. */
 .home-header {
-  padding-inline: max(
+  padding-left: max(
     var(--sp-5),
+    env(safe-area-inset-left),
+    calc((100% - 64rem) / 2 + var(--sp-5))
+  );
+  padding-right: max(
+    var(--sp-5),
+    env(safe-area-inset-right),
     calc((100% - 64rem) / 2 + var(--sp-5))
   );
 }
@@ -342,10 +368,14 @@ small {
   margin: var(--sp-1) 0 0;
   font-size: 1.15rem;
   font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .header-titles {
   min-width: 0;
+  overflow: hidden;
 }
 
 .header-titles .sub {
@@ -395,7 +425,7 @@ small {
   list-style: none;
   display: grid;
   gap: var(--sp-3);
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
 }
 
 .project-card {
@@ -629,6 +659,19 @@ small {
   gap: 1px;
   background: var(--line);
   min-height: 0;
+  min-width: 0;
+}
+
+/* Just above the tab breakpoint, keep the three columns usable without crushing. */
+@media (min-width: 64.01rem) and (max-width: 80rem) {
+  .studio-layout {
+    grid-template-columns: minmax(13rem, 17rem) minmax(16rem, 1fr) minmax(14rem, 18rem);
+  }
+
+  .panel,
+  .chart-stage {
+    padding: var(--sp-4);
+  }
 }
 
 .panel,
@@ -906,10 +949,16 @@ small {
 
 .chart-paint-bar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--sp-2);
   flex-shrink: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: var(--sp-1);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .paint-tool.is-active {
@@ -920,6 +969,7 @@ small {
 .paint-swatch {
   padding: 0;
   width: 2.25rem;
+  flex-shrink: 0;
 }
 
 .paint-swatch .swatch {
@@ -1058,6 +1108,18 @@ small {
 
 .palette-header h3 {
   margin: 0;
+}
+
+.palette-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+.palette-count {
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
 
 .palette-add-button {
@@ -1313,6 +1375,54 @@ small {
   color: var(--muted);
 }
 
+.image-eyedropper-triggers button.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.image-eyedropper {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.image-eyedropper-triggers {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-2);
+}
+
+.image-eyedropper-panel {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.image-eyedropper-stage {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: crosshair;
+  background: var(--chart-canvas);
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.image-eyedropper-stage img {
+  display: block;
+  width: 100%;
+  max-height: 14rem;
+  object-fit: contain;
+  pointer-events: none;
+}
+
 .yarn-form,
 .similar-warning {
   display: grid;
@@ -1455,7 +1565,8 @@ small {
 
 @media (max-width: 64rem) {
   .studio {
-    padding-bottom: 4.25rem;
+    /* Reserve space for the fixed tab bar + home indicator. */
+    padding-bottom: calc(3.25rem + env(safe-area-inset-bottom));
   }
 
   .studio-layout {
@@ -1476,7 +1587,10 @@ small {
     bottom: 0;
     z-index: 20;
     gap: 0;
-    padding: var(--sp-2) var(--sp-3) calc(var(--sp-2) + env(safe-area-inset-bottom));
+    padding: var(--sp-2)
+      max(var(--sp-3), env(safe-area-inset-right))
+      calc(var(--sp-2) + env(safe-area-inset-bottom))
+      max(var(--sp-3), env(safe-area-inset-left));
     border-top: 1px solid var(--line);
     background: color-mix(in srgb, var(--surface) 94%, transparent);
     backdrop-filter: blur(10px);
@@ -1500,10 +1614,11 @@ small {
 
   .studio-pane {
     display: none;
-    flex: 1;
-    min-height: calc(100dvh - 8.5rem);
+    flex: 1 1 auto;
+    min-height: 0;
     border: 0;
     overflow: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .studio-layout[data-tab="framing"] .studio-pane[data-pane="framing"],
@@ -1515,9 +1630,25 @@ small {
   .studio-layout[data-tab="chart"] .studio-pane[data-pane="chart"] {
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+  }
+
+  .studio-layout[data-tab="chart"] .studio-pane[data-pane="chart"] .chart-view {
+    flex: 1;
+    min-height: 0;
   }
 
   .crop-frame {
+    max-width: none;
+  }
+
+  .export-panel {
+    position: fixed;
+    top: auto;
+    bottom: calc(4.25rem + env(safe-area-inset-bottom));
+    right: max(var(--sp-3), env(safe-area-inset-right));
+    left: max(var(--sp-3), env(safe-area-inset-left));
+    width: auto;
     max-width: none;
   }
 }
@@ -1542,6 +1673,65 @@ small {
   .studio-header .actions > .theme-toggle,
   .home-header .actions > .theme-toggle {
     flex: 0 0 auto;
+  }
+
+  .panel,
+  .chart-stage {
+    padding: var(--sp-4);
+  }
+
+  .home-main {
+    padding: var(--sp-5) var(--sp-4);
+  }
+
+  .crop-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-viewport-stage {
+    min-height: 12rem;
+  }
+
+  .match-list li,
+  .inventory-list li {
+    grid-template-columns: 1.5rem minmax(0, 1fr);
+  }
+
+  .match-list li > button,
+  .inventory-list li > button {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+
+  .image-eyedropper-triggers {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Short viewports (phone landscape, split screen): keep the chart usable. */
+@media (max-height: 30rem) {
+  .home-header,
+  .studio-header {
+    padding-block: var(--sp-2);
+  }
+
+  .panel,
+  .chart-stage {
+    padding: var(--sp-3);
+  }
+
+  .chart-viewport-stage {
+    min-height: 8rem;
+  }
+
+  .chart-viewport-toolbar,
+  .chart-paint-bar {
+    gap: var(--sp-1);
+  }
+
+  .studio-tab {
+    min-height: 2.5rem;
+    font-size: 0.8rem;
   }
 }
 

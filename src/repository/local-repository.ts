@@ -32,6 +32,7 @@ export type LocalRepository = {
   listPatternProjects: () => Promise<PatternProject[]>;
   deletePatternProject: (id: string) => Promise<void>;
   saveYarnColor: (yarn: YarnColor) => Promise<void>;
+  deleteYarnColor: (id: string) => Promise<void>;
   listYarnColors: () => Promise<YarnColor[]>;
 };
 
@@ -122,6 +123,9 @@ export async function createLocalRepository(
     },
     async saveYarnColor(yarn) {
       await database.put("inventory", yarn);
+    },
+    async deleteYarnColor(id) {
+      await database.delete("inventory", id);
     },
     async listYarnColors() {
       return database.getAllFromIndex("inventory", "by-name");

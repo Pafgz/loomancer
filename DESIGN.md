@@ -281,17 +281,23 @@ weight or an uppercase label, not size.
 
 The Studio is a three-column grid — controls (15–20rem), chart (flexible,
 18rem min), color key (16–21rem) — separated by 1px gutters created by a
-grey grid background rather than borders. The home screen is a centered 64rem
-column of auto-filling project cards at 15rem minimum.
+grey grid background rather than borders. Between 64rem and 80rem the side
+columns tighten (13–18rem) so the chart keeps room. The home screen is a
+centered 64rem column of auto-filling project cards at `min(100%, 15rem)`.
+
+The Studio shell fills `100dvh` and scrolls inside panes; home scrolls the
+page. Safe-area insets pad the sticky header and the mobile tab bar.
 
 Below 64rem the three columns become one full-height pane at a time behind a
 fixed bottom tab bar (Framing / Chart / Colors), which is also where the layout
 switches from three landmarks to a real ARIA tab set. Below 40rem the header
-stacks and its actions go full width. Safe-area insets are respected on the
-bottom tab bar and the fullscreen chart.
+stacks, actions go full width, framing fields and palette tools stack, and
+panel padding tightens. Below 30rem height (phone landscape / split view) the
+chart stage min-height and chrome padding compress so the chart stays usable.
 
-Spacing runs on a 0.25rem scale (`sp-1` … `sp-6`); panels use `sp-5`, cards and
-field groups use `sp-4`, control clusters use `sp-2`.
+Spacing runs on a 0.25rem scale (`sp-1` … `sp-6`); panels use `sp-5` (or `sp-4`
+when space is tight), cards and field groups use `sp-4`, control clusters use
+`sp-2`.
 
 Touch sizing is decided by `pointer: coarse`, not by width — a touchscreen
 laptop gets 2.75rem controls at desktop widths, and a mouse keeps the dense
@@ -390,11 +396,14 @@ dragging never re-renders React. It is keyboard-operable as a focusable group:
 arrows pan, Shift+arrow pans faster, `+`/`-` zoom, `0` refits, and the canvas
 carries a text alternative describing size, symbols, and stitch counts.
 
-### Color Key Row
+### Color Key Panel
 
-A 2.75rem row (3rem on touch) pairing a 2rem swatch — symbol overprinted in
-white with a dark text-shadow so it survives any yarn color — with a name and
-stitch count. Selected rows take the indigo border and `accent-soft` fill.
+A compact auto-fill swatch grid (2.5rem cells, 2.75rem on coarse pointers) with
+the symbol overprinted on each fill. The palette header puts a **+** control at
+the top right that opens the native color picker and adds the chosen color. The
+selected color is summarized under the grid; Edit covers replace, merge, yarn
+matches, and (when a photo exists) pick-from-photo. The chart paint bar scrolls
+horizontally when the palette is long.
 
 ## Do's and Don'ts
 

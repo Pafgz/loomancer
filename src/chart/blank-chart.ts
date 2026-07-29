@@ -1,5 +1,5 @@
 import type { ColorworkChart } from "../domain/models";
-import { CHART_SYMBOLS, clampChartDimension } from "./chart-types";
+import { chartSymbolForIndex, clampChartDimension } from "./chart-types";
 import { recountPalette } from "./palette-edits";
 
 /**
@@ -30,7 +30,7 @@ export function createBlankChart(
       {
         index: 0,
         hex,
-        symbol: CHART_SYMBOLS[0],
+        symbol: chartSymbolForIndex(0),
         stitchCount,
       },
     ],

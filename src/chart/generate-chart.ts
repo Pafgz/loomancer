@@ -1,5 +1,5 @@
 import {
-  CHART_SYMBOLS,
+  chartSymbolForIndex,
   clampMaxColors,
   rgbToHex,
   type ColorworkChart,
@@ -242,7 +242,7 @@ export function generateColorworkChart(
     palette: paletteRgb.map((rgb, index) => ({
       index,
       hex: rgbToHex(rgb[0], rgb[1], rgb[2]),
-      symbol: CHART_SYMBOLS[index] ?? String(index + 1),
+      symbol: chartSymbolForIndex(index),
       stitchCount: stitchCounts[index] ?? 0,
     })),
   };

@@ -13,6 +13,7 @@ import {
   type YarnColor,
 } from "../domain/models";
 import { normalizeHex } from "./color-hex";
+import { ImageEyedropper } from "./ImageEyedropper";
 
 type ColorKeyPanelProps = {
   chart: ColorworkChart;
@@ -26,6 +27,8 @@ type ColorKeyPanelProps = {
   /** Adds a palette entry and arms paint on it; must not replace an existing color. */
   onAddPaletteColor: (hex: string) => void;
   onInventoryChange: (inventory: YarnColor[]) => void;
+  /** Object URL for the Pattern Project source photo, when one exists. */
+  sourceImageUrl?: string | null;
 };
 
 type ColorEditorSession =
@@ -143,6 +146,7 @@ export function ColorKeyPanel({
   onPreviewChartChange,
   onAddPaletteColor,
   onInventoryChange,
+  sourceImageUrl = null,
 }: ColorKeyPanelProps) {
   const [editor, setEditor] = useState<ColorEditorSession | null>(null);
   const [liveEditHex, setLiveEditHex] = useState<string | null>(null);
@@ -214,16 +218,21 @@ export function ColorKeyPanel({
       <div className="card">
         <div className="palette-header">
           <h3>Palette</h3>
-          <button
-            type="button"
-            className="palette-add-button"
-            aria-label="Add palette color"
-            aria-expanded={editor?.kind === "add"}
-            disabled={!canAddColor}
-            onClick={openAddEditor}
-          >
-            +
-          </button>
+          <div className="palette-header-actions">
+            <span className="palette-count hint" aria-live="polite">
+              {chart.palette.length}/{MAX_CHART_COLORS}
+            </span>
+            <button
+              type="button"
+              className="palette-add-button"
+              aria-label="Add palette color"
+              aria-expanded={editor?.kind === "add"}
+              disabled={!canAddColor}
+              onClick={openAddEditor}
+            >
+              +
+            </button>
+          </div>
         </div>
         {!canAddColor ? (
           <p className="muted">Palette is full ({MAX_CHART_COLORS} colors).</p>
@@ -293,21 +302,34 @@ export function ColorKeyPanel({
                   </button>
                 </div>
                 {editingThis ? (
-                  <ColorEditor
-                    key={`edit-${entry.index}-${entry.hex}`}
-                    initialHex={entry.hex}
-                    groupLabel={`Edit color for ${entry.symbol}`}
-                    applyLabel="Apply"
-                    onDraftChange={(hex) =>
-                      publishEditPreview(entry.index, hex)
-                    }
-                    onApply={(hex) => {
-                      clearPreview();
-                      applyReplace(entry.index, hex, "Custom color");
-                      setEditor(null);
-                    }}
-                    onCancel={closeEditor}
-                  />
+                  <>
+                    <ColorEditor
+                      key={`edit-${entry.index}-${entry.hex}`}
+                      initialHex={entry.hex}
+                      groupLabel={`Edit color for ${entry.symbol}`}
+                      applyLabel="Apply"
+                      onDraftChange={(hex) =>
+                        publishEditPreview(entry.index, hex)
+                      }
+                      onApply={(hex) => {
+                        clearPreview();
+                        applyReplace(entry.index, hex, "Custom color");
+                        setEditor(null);
+                      }}
+                      onCancel={closeEditor}
+                    />
+                    {sourceImageUrl ? (
+                      <ImageEyedropper
+                        imageUrl={sourceImageUrl}
+                        label="Pick from photo"
+                        onPick={(hex) => {
+                          clearPreview();
+                          applyReplace(entry.index, hex, "From photo");
+                          setEditor(null);
+                        }}
+                      />
+                    ) : null}
+                  </>
                 ) : null}
               </li>
             );
@@ -464,6 +486,18 @@ export function ColorKeyPanel({
                 {yarn.name}
                 {yarn.quantity ? ` · qty ${yarn.quantity}` : ""}
               </span>
+              <button
+                type="button"
+                className="ghost"
+                aria-label={`Delete ${yarn.name} from Yarn Inventory`}
+                onClick={() =>
+                  onInventoryChange(
+                    inventory.filter((entry) => entry.id !== yarn.id),
+                  )
+                }
+              >
+                Delete
+              </button>
             </li>
           ))}
         </ul>

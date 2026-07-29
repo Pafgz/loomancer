@@ -740,6 +740,7 @@ export function Studio({
               onInventoryChange={(next) => {
                 void onInventoryChange(next);
               }}
+              sourceImageUrl={previewUrl}
             />
           ) : (
             <p className="muted">

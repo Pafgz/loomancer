@@ -6,7 +6,7 @@
  */
 import { generateColorworkChart } from "../chart/generate-chart";
 import type { RgbaImage } from "../chart/chart-types";
-import { CHART_SYMBOLS, MAX_CHART_DIMENSION } from "../chart/chart-types";
+import { chartSymbolForIndex, MAX_CHART_DIMENSION } from "../chart/chart-types";
 import { createEmptyPatternProject, type ColorworkChart, type PatternProject } from "../domain/models";
 import { createLocalRepository } from "../repository/local-repository";
 import { drawColorworkChart } from "../ui/draw-colorwork-chart";
@@ -72,7 +72,7 @@ function makeChart(side: number, colors: number): ColorworkChart {
     palette: Array.from({ length: colors }, (_, index) => ({
       index,
       hex: `#${(((index * 1234567) % 0xffffff) | 0).toString(16).padStart(6, "0")}`,
-      symbol: CHART_SYMBOLS[index] ?? String(index + 1),
+      symbol: chartSymbolForIndex(index),
       stitchCount: counts[index] ?? 0,
     })),
   };

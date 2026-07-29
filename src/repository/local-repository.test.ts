@@ -93,6 +93,16 @@ describe("local repository", () => {
     expect(listed[0]?.schemaVersion).toBe(YARN_INVENTORY_SCHEMA_VERSION);
   });
 
+  it("deletes a Yarn Inventory color", async () => {
+    const repository = await createLocalRepository(`knit-pro-${crypto.randomUUID()}`);
+    const yarn = createYarnColor("Forest green", "#263e36");
+    await repository.saveYarnColor(yarn);
+
+    await repository.deleteYarnColor(yarn.id);
+
+    expect(await repository.listYarnColors()).toEqual([]);
+  });
+
   it("persists a source image Blob with crop and rotation for reopen", async () => {
     const repository = await createLocalRepository(
       `knit-pro-${crypto.randomUUID()}`,

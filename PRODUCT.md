@@ -48,7 +48,8 @@ Confirmed for this era:
 - Edit individual chart cells by hand, with undo/redo.
 - Local drafts: autosave, reopen, rename, duplicate, delete.
 - Source images from the device; JPEG/PNG/WebP guaranteed; HEIC/HEIF best-effort.
-- Framing (crop/rotate), detail and dimension controls, 2–12 color palettes, chart regeneration with progress and confirmation over manual palette edits.
+- Framing (crop/rotate), detail and dimension controls, 2–50 color palettes, chart regeneration with progress and confirmation over manual palette edits.
+- Sample colors from the original photo (tap the preview, or system eyedropper where supported) when adding or replacing palette entries.
 - Color key with symbols, labels, stitch counts; global replace/merge; undo/redo for palette edits.
 - Yarn Inventory entry and perceptual Color Match suggestions that require confirmation (quantity is informational only).
 - Export PDF and PNG with chart and color key; capability-detected Share/Save with download fallback.

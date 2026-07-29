@@ -1,5 +1,5 @@
 import Color from "colorjs.io";
-import { CHART_SYMBOLS } from "./chart-types";
+import { chartSymbolForIndex } from "./chart-types";
 import type { ColorworkChart, ChartPaletteEntry } from "../domain/models";
 import type { YarnColor } from "../domain/models";
 
@@ -53,7 +53,7 @@ export function recountPalette(chart: ColorworkChart): ColorworkChart {
       ...entry,
       index,
       stitchCount: stitchCounts[index] ?? 0,
-      symbol: entry.symbol || CHART_SYMBOLS[index] || String(index + 1),
+      symbol: entry.symbol || chartSymbolForIndex(index),
     })),
   };
 }
@@ -114,7 +114,7 @@ export function mergeChartColors(
   const palette: ChartPaletteEntry[] = remaining.map((entry, index) => ({
     ...entry,
     index,
-    symbol: CHART_SYMBOLS[index] || String(index + 1),
+    symbol: chartSymbolForIndex(index),
   }));
 
   return recountPalette({
@@ -138,7 +138,7 @@ export function addChartColor(
       {
         index,
         hex,
-        symbol: CHART_SYMBOLS[index] || String(index + 1),
+        symbol: chartSymbolForIndex(index),
         stitchCount: 0,
         yarnLabel,
       },
