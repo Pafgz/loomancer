@@ -1160,6 +1160,15 @@ small {
   color: var(--ink);
 }
 
+.color-row-hex {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-transform: uppercase;
+}
+
 .color-row-count {
   font-size: 0.75rem;
   font-weight: 500;

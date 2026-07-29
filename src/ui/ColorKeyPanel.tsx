@@ -1,4 +1,10 @@
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { MAX_CHART_COLORS } from "../chart/chart-types";
 import {
   findIndistinguishablePairs,
@@ -24,6 +30,52 @@ type ColorKeyPanelProps = {
   onInventoryChange: (inventory: YarnColor[]) => void;
 };
 
+/**
+ * Native `<input type="color">` commits on the DOM `change` event (picker
+ * closed / OK). React's `onChange` tracks `input` and fires while dragging —
+ * which would spam palette adds/replaces — so we listen to `change` only.
+ */
+function ColorCommitInput({
+  value,
+  ariaLabel,
+  className,
+  disabled,
+  onCommit,
+}: {
+  value: string;
+  ariaLabel: string;
+  className?: string;
+  disabled?: boolean;
+  onCommit: (hex: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const onCommitRef = useRef(onCommit);
+  onCommitRef.current = onCommit;
+
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) {
+      return;
+    }
+    const handleChange = () => {
+      onCommitRef.current(input.value);
+    };
+    input.addEventListener("change", handleChange);
+    return () => input.removeEventListener("change", handleChange);
+  }, []);
+
+  return (
+    <input
+      ref={inputRef}
+      type="color"
+      className={className}
+      defaultValue={value}
+      aria-label={ariaLabel}
+      disabled={disabled}
+    />
+  );
+}
+
 export function ColorKeyPanel({
   chart,
   inventory,
@@ -34,6 +86,8 @@ export function ColorKeyPanel({
   onInventoryChange,
 }: ColorKeyPanelProps) {
   const addColorInputRef = useRef<HTMLInputElement>(null);
+  const onAddPaletteColorRef = useRef(onAddPaletteColor);
+  onAddPaletteColorRef.current = onAddPaletteColor;
   const [yarnName, setYarnName] = useState("");
   const [yarnHex, setYarnHex] = useState("#244b3c");
   const [yarnQuantity, setYarnQuantity] = useState("");
@@ -49,6 +103,18 @@ export function ColorKeyPanel({
     [chart],
   );
   const canMerge = Boolean(selected) && chart.palette.length > 1;
+
+  useEffect(() => {
+    const input = addColorInputRef.current;
+    if (!input) {
+      return;
+    }
+    const handleChange = () => {
+      onAddPaletteColorRef.current(input.value);
+    };
+    input.addEventListener("change", handleChange);
+    return () => input.removeEventListener("change", handleChange);
+  }, []);
 
   function applyReplace(paletteIndex: number, hex: string, yarnLabel?: string) {
     onChartChange(replaceChartColor(chart, paletteIndex, hex, yarnLabel));
@@ -89,7 +155,6 @@ export function ColorKeyPanel({
             defaultValue="#244b3c"
             aria-label="New palette color"
             disabled={!canAddColor}
-            onChange={(event) => onAddPaletteColor(event.target.value)}
           />
         </div>
         {!canAddColor ? (
@@ -119,21 +184,22 @@ export function ColorKeyPanel({
                   <span className="color-row-symbol">{entry.symbol}</span>
                 </span>
                 <span className="color-row-meta">
-                  <span className="color-row-name">
-                    {entry.yarnLabel ?? entry.hex}
-                  </span>
+                  {entry.yarnLabel ? (
+                    <span className="color-row-name">{entry.yarnLabel}</span>
+                  ) : null}
+                  <span className="color-row-hex">{entry.hex}</span>
                   <span className="color-row-count">
                     {entry.stitchCount} stitches
                   </span>
                 </span>
               </button>
-              <input
-                type="color"
+              <ColorCommitInput
+                key={`${entry.index}-${entry.hex}`}
                 className="color-row-edit"
                 value={entry.hex}
-                aria-label={`Change color for ${entry.symbol} ${entry.yarnLabel ?? entry.hex}`}
-                onChange={(event) =>
-                  applyReplace(entry.index, event.target.value, "Custom color")
+                ariaLabel={`Change color for ${entry.symbol} ${entry.yarnLabel ?? entry.hex}`}
+                onCommit={(hex) =>
+                  applyReplace(entry.index, hex, "Custom color")
                 }
               />
             </li>
@@ -164,7 +230,10 @@ export function ColorKeyPanel({
                 .filter((entry) => entry.index !== selected.index)
                 .map((entry) => (
                   <option key={entry.index} value={entry.index}>
-                    {entry.symbol} {entry.yarnLabel ?? entry.hex}
+                    {entry.symbol}{" "}
+                    {entry.yarnLabel
+                      ? `${entry.yarnLabel} (${entry.hex})`
+                      : entry.hex}
                   </option>
                 ))}
             </select>

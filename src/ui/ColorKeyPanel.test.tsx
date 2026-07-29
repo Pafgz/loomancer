@@ -78,14 +78,16 @@ describe("ColorKeyPanel inline palette controls", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("appends a color via the header picker without rewriting cells", async () => {
+  it("appends a color only when the header picker commits, not while dragging", () => {
     const onAddPaletteColor = vi.fn();
     renderPanel({ onAddPaletteColor });
 
-    fireEvent.change(screen.getByLabelText(/new palette color/i), {
-      target: { value: "#abcdef" },
-    });
+    const picker = screen.getByLabelText(/new palette color/i);
+    fireEvent.input(picker, { target: { value: "#aabbcc" } });
+    expect(onAddPaletteColor).not.toHaveBeenCalled();
 
+    fireEvent.change(picker, { target: { value: "#abcdef" } });
+    expect(onAddPaletteColor).toHaveBeenCalledTimes(1);
     expect(onAddPaletteColor).toHaveBeenCalledWith("#abcdef");
   });
 
@@ -122,20 +124,30 @@ describe("ColorKeyPanel inline palette controls", () => {
     expect(onChartChange).not.toHaveBeenCalled();
   });
 
-  it("replaces a color from the trailing Edit picker and labels it Custom color", () => {
+  it("replaces a color only when the trailing Edit picker commits", () => {
     const onChartChange = vi.fn();
     renderPanel({ onChartChange, selectedIndex: null });
 
-    fireEvent.change(
-      screen.getByLabelText(/change color for ▲/i),
-      { target: { value: "#112233" } },
-    );
+    const picker = screen.getByLabelText(/change color for ▲/i);
+    fireEvent.input(picker, { target: { value: "#445566" } });
+    expect(onChartChange).not.toHaveBeenCalled();
+
+    fireEvent.change(picker, { target: { value: "#112233" } });
 
     expect(onChartChange).toHaveBeenCalledTimes(1);
     const next = onChartChange.mock.calls[0]![0] as ColorworkChart;
     expect(next.palette[0]?.hex).toBe("#112233");
     expect(next.palette[0]?.yarnLabel).toBe("Custom color");
     expect(next.cells).toEqual([0, 1, 0, 1]);
+  });
+
+  it("shows the hex code for every palette entry", () => {
+    renderPanel();
+
+    expect(screen.getByText("#203040")).toBeInTheDocument();
+    expect(screen.getByText("#d0a050")).toBeInTheDocument();
+    expect(screen.getByText("Ink")).toBeInTheDocument();
+    expect(screen.getByText("Gold")).toBeInTheDocument();
   });
 
   it("does not keep a separate Edit card", () => {
