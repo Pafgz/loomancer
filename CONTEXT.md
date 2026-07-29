@@ -44,12 +44,15 @@ _Avoid_: Automatic replacement, exact match
 **Knit-ready Pattern**:
 The exported Colorwork Chart and color key sufficient for the target Knitter to use the motif in their own knitting project.
 _Avoid_: Export, PDF, recipe
-_Note_: Names the knitting export only. Cross-stitch exports have no approved name yet — see Undecided below.
+_Note_: Names the knitting export only. The cross-stitch counterpart is **Stitch-ready Pattern**.
+
+**Stitch-ready Pattern**:
+The exported Colorwork Chart and color key sufficient for the target Stitcher to use the motif in their own cross-stitch project. Same chart data as a Knit-ready Pattern; different chart conventions and PDF packaging.
+_Avoid_: Export, PDF, cross-stitch chart, floss chart
 
 ## Undecided
 
 Do not invent answers to these; raise them instead.
 
 - Whether **Yarn Inventory** keeps its knitting-specific name, gains a craft-neutral one, or gains a cross-stitch sibling concept.
-- What the cross-stitch counterpart of **Knit-ready Pattern** is called.
 - Whether an umbrella noun covering both Knitter and Stitcher should exist. There is none today, and _maker_ is explicitly avoided, so write "Knitter or Stitcher" rather than reaching for a collective term.
