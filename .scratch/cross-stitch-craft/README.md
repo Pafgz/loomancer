@@ -12,7 +12,7 @@ Branch: `cross-stitch-craft`, cut from `main` after PR #4 (`knit-ready-chart-sty
 - [x] 02 — Add craft type to a Pattern Project
 - [x] 03 — Start a Pattern Project from a blank canvas
 - [x] 04 — Paint individual chart cells
-- [ ] 05 — Cross-stitch export conventions (untouched)
+- [x] 05 — Cross-stitch export conventions / Stitch-ready Pattern
 
 ## Dependency order
 

@@ -36,7 +36,7 @@ Neighboring tools either generate garment patterns without this photo-to-stitch 
 - Knitter or Stitcher starts a Pattern Project and picks its craft, then either selects a device photo — crop/rotate, set stitch grid and color count, generate — or starts from a blank grid; edits the Colorwork Chart by palette and by cell, confirms Yarn Inventory matches, and exports PDF/PNG (Share/Save when the OS supports them; download otherwise).
 - Pattern Projects and Yarn Inventory live only on that device/browser; Yarn Inventory is shared across projects on the same device.
 - Working from the chart — knitting or stitching — may happen on paper, tablet, or phone; the export is the handoff into that ritual.
-- Domain language is fixed in `CONTEXT.md` (Knitter, Stitcher, Craft, Pattern Project, Colorwork Chart, Chart Cell, Yarn Inventory, Yarn Color, Color Match, Knit-ready Pattern).
+- Domain language is fixed in `CONTEXT.md` (Knitter, Stitcher, Craft, Pattern Project, Colorwork Chart, Chart Cell, Yarn Inventory, Yarn Color, Color Match, Knit-ready Pattern, Stitch-ready Pattern).
 
 ## Capabilities and Constraints
 
@@ -52,7 +52,7 @@ Confirmed for this era:
 - Sample colors from the original photo (tap the preview, or system eyedropper where supported) when adding or replacing palette entries.
 - Color key with symbols, labels, stitch counts; global replace/merge; undo/redo for palette edits.
 - Yarn Inventory entry and perceptual Color Match suggestions that require confirmation (quantity is informational only).
-- Export PDF and PNG with chart and color key; capability-detected Share/Save with download fallback.
+- Export PDF and PNG with chart and color key in the craft's conventions (Knit-ready Pattern or Stitch-ready Pattern); capability-detected Share/Save with download fallback.
 - App shell usable offline after install/caching for saved local projects.
 - Clear notice that local data is not synchronized or backed up.
 

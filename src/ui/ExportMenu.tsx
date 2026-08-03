@@ -7,7 +7,8 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import type { ColorworkChart } from "../domain/models";
+import type { ColorworkChart, CraftType } from "../domain/models";
+import { DEFAULT_CRAFT_TYPE } from "../domain/models";
 import { MAX_PNG_SIDE, renderChartPngBlob } from "../export/chart-export";
 import {
   downloadBlob,
@@ -21,6 +22,7 @@ type ExportMenuProps = {
   chart: ColorworkChart | null;
   projectName: string;
   showSymbols?: boolean;
+  craftType?: CraftType;
 };
 
 type Method = "download" | "share" | "save";
@@ -51,6 +53,7 @@ export function ExportMenu({
   chart,
   projectName,
   showSymbols = true,
+  craftType = DEFAULT_CRAFT_TYPE,
 }: ExportMenuProps) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -166,6 +169,7 @@ export function ExportMenu({
         const bytes = await buildChartPdfBytes(chart, {
           title: projectName,
           showSymbols,
+          craftType,
         });
         blob = new Blob([bytes], { type: "application/pdf" });
         filename = `${base}.pdf`;
@@ -174,6 +178,7 @@ export function ExportMenu({
         const png = await renderChartPngBlob(chart, {
           title: projectName,
           showSymbols,
+          craftType,
         });
         blob = png.blob;
         filename = `${base}.png`;

@@ -1,13 +1,20 @@
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
-import type { ColorworkChart } from "../domain/models";
+import type { ColorworkChart, CraftType } from "../domain/models";
+import { DEFAULT_CRAFT_TYPE } from "../domain/models";
 import {
   buildColorKeyRows,
-  CHART_READING_HINT,
+  centerLineOffsetCells,
+  chartReadingHint,
   hexToRgb01,
+  horizontalLineCellsFromOrigin,
   isMajorGridLine,
+  pdfLegendTitle,
+  pdfSubtitle,
   rowNumberAtRow,
   shouldLabel,
   stitchNumberAtColumn,
+  STITCH_READY_PDF_FOOTER,
+  verticalLineCellsFromOrigin,
 } from "./chart-export";
 
 /**
@@ -23,19 +30,26 @@ const MISSING_CELL_HEX = "#cbd0da";
 
 /**
  * Build a vector-first PDF: filled cell rectangles, major/minor grid, symbols,
- * traditional edge coordinates, reading hint, and a color key. Rendered from
+ * craft-aware edge coordinates, reading hint, and a color key. Rendered from
  * canonical chart data, never a screenshot.
  */
 export async function buildChartPdfBytes(
   chart: ColorworkChart,
-  options: { title?: string; showSymbols?: boolean } = {},
+  options: {
+    title?: string;
+    showSymbols?: boolean;
+    craftType?: CraftType;
+  } = {},
 ): Promise<Uint8Array> {
   const showSymbols = options.showSymbols ?? true;
+  const craft = options.craftType ?? DEFAULT_CRAFT_TYPE;
+  const isStitchReady = craft === "cross-stitch";
   const cell = PDF_CELL_PT;
   const gutter = cell * 1.8;
   const margin = 36;
   const titleHeight = 28;
   const hintHeight = 18;
+  const footerHeight = isStitchReady ? 22 : 0;
   const keyRowHeight = cell * 1.4;
   const keyHeight = cell * 1.6 + keyRowHeight * chart.palette.length;
 
@@ -43,7 +57,14 @@ export async function buildChartPdfBytes(
   const chartH = chart.height * cell;
   const pageWidth = margin * 2 + gutter + chartW;
   const pageHeight =
-    margin * 2 + titleHeight + gutter + chartH + hintHeight + cell + keyHeight;
+    margin * 2 +
+    titleHeight +
+    gutter +
+    chartH +
+    hintHeight +
+    cell +
+    keyHeight +
+    footerHeight;
 
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -52,6 +73,7 @@ export async function buildChartPdfBytes(
 
   const minorLine = rgb(0.78, 0.8, 0.84);
   const majorLineColor = rgb(0.28, 0.3, 0.34);
+  const centerLineColor = rgb(0.72, 0.18, 0.18);
   const ink = rgb(0.1, 0.11, 0.14);
 
   // pdf-lib uses a bottom-left origin; we lay the chart out from the top.
@@ -64,22 +86,24 @@ export async function buildChartPdfBytes(
     font: bold,
     color: ink,
   });
-  page.drawText(`${chart.width} × ${chart.height} stitches`, {
-    x: margin,
-    y: top - 18 - 16,
-    size: 10,
-    font,
-    color: rgb(0.4, 0.42, 0.48),
-  });
+  page.drawText(
+    sanitizeWinAnsi(pdfSubtitle(craft, chart.width, chart.height)),
+    {
+      x: margin,
+      y: top - 18 - 16,
+      size: 10,
+      font,
+      color: rgb(0.4, 0.42, 0.48),
+    },
+  );
 
   const gridTop = top - titleHeight - 12;
   const gridLeft = margin + gutter;
   const gridBottom = gridTop - chartH;
 
-  // Column coordinates (top) — stitch 1 at the right.
   for (let col = 0; col < chart.width; col += 1) {
-    const stitch = stitchNumberAtColumn(col, chart.width);
-    if (!shouldLabel(stitch, chart.width)) continue;
+    const stitch = stitchNumberAtColumn(col, chart.width, craft);
+    if (!shouldLabel(stitch, chart.width, craft)) continue;
     const label = String(stitch);
     const labelWidth = font.widthOfTextAtSize(label, 6);
     page.drawText(label, {
@@ -91,10 +115,9 @@ export async function buildChartPdfBytes(
     });
   }
 
-  // Row coordinates (left) — row 1 at the bottom.
   for (let row = 0; row < chart.height; row += 1) {
-    const rowNo = rowNumberAtRow(row, chart.height);
-    if (!shouldLabel(rowNo, chart.height)) continue;
+    const rowNo = rowNumberAtRow(row, chart.height, craft);
+    if (!shouldLabel(rowNo, chart.height, craft)) continue;
     const label = String(rowNo);
     const labelWidth = font.widthOfTextAtSize(label, 6);
     const cellTopY = gridTop - row * cell;
@@ -107,7 +130,6 @@ export async function buildChartPdfBytes(
     });
   }
 
-  // Cell fills (grid drawn once afterward for major/minor weights).
   for (let row = 0; row < chart.height; row += 1) {
     const cellTopY = gridTop - row * cell;
     for (let col = 0; col < chart.width; col += 1) {
@@ -134,10 +156,9 @@ export async function buildChartPdfBytes(
     }
   }
 
-  // Major / minor grid from traditional origin (right + bottom).
   for (let i = 0; i <= chart.width; i += 1) {
-    const fromRight = chart.width - i;
-    const major = isMajorGridLine(fromRight, chart.width);
+    const fromOrigin = verticalLineCellsFromOrigin(i, chart.width, craft);
+    const major = isMajorGridLine(fromOrigin, chart.width, craft);
     const x = gridLeft + i * cell;
     page.drawLine({
       start: { x, y: gridBottom },
@@ -147,8 +168,8 @@ export async function buildChartPdfBytes(
     });
   }
   for (let j = 0; j <= chart.height; j += 1) {
-    const fromBottom = chart.height - j;
-    const major = isMajorGridLine(fromBottom, chart.height);
+    const fromOrigin = horizontalLineCellsFromOrigin(j, chart.height, craft);
+    const major = isMajorGridLine(fromOrigin, chart.height, craft);
     const y = gridTop - j * cell;
     page.drawLine({
       start: { x: gridLeft, y },
@@ -158,7 +179,24 @@ export async function buildChartPdfBytes(
     });
   }
 
-  page.drawText(sanitizeWinAnsi(CHART_READING_HINT), {
+  if (isStitchReady) {
+    const cx = gridLeft + centerLineOffsetCells(chart.width) * cell;
+    const cy = gridTop - centerLineOffsetCells(chart.height) * cell;
+    page.drawLine({
+      start: { x: cx, y: gridBottom },
+      end: { x: cx, y: gridTop },
+      thickness: 1.1,
+      color: centerLineColor,
+    });
+    page.drawLine({
+      start: { x: gridLeft, y: cy },
+      end: { x: gridLeft + chartW, y: cy },
+      thickness: 1.1,
+      color: centerLineColor,
+    });
+  }
+
+  page.drawText(sanitizeWinAnsi(chartReadingHint(craft)), {
     x: margin,
     y: gridBottom - 14,
     size: 8,
@@ -166,9 +204,8 @@ export async function buildChartPdfBytes(
     color: rgb(0.4, 0.42, 0.48),
   });
 
-  // Color key.
   const keyTop = gridBottom - hintHeight - 10;
-  page.drawText("Color key", {
+  page.drawText(sanitizeWinAnsi(pdfLegendTitle(craft)), {
     x: margin,
     y: keyTop,
     size: 12,
@@ -208,6 +245,16 @@ export async function buildChartPdfBytes(
       },
     );
   });
+
+  if (isStitchReady) {
+    page.drawText(sanitizeWinAnsi(STITCH_READY_PDF_FOOTER), {
+      x: margin,
+      y: margin - 4,
+      size: 8,
+      font,
+      color: rgb(0.45, 0.47, 0.53),
+    });
+  }
 
   return doc.save();
 }

@@ -625,6 +625,7 @@ export function Studio({
             chart={draft.chart}
             projectName={draft.name}
             showSymbols={draft.showChartSymbols}
+            craftType={draft.craftType}
           />
         </div>
       </header>

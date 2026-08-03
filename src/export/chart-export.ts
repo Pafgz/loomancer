@@ -1,4 +1,5 @@
-import type { ColorworkChart } from "../domain/models";
+import type { ColorworkChart, CraftType } from "../domain/models";
+import { DEFAULT_CRAFT_TYPE } from "../domain/models";
 
 /** Hard cap for a single PNG side, per the MVP spec. */
 export const MAX_PNG_SIDE = 4096;
@@ -6,12 +7,29 @@ export const MAX_PNG_SIDE = 4096;
 /** Default on-screen cell size (px) used when the caller doesn't specify one. */
 export const DEFAULT_CELL_PX = 28;
 
-/** Bold counting lines every N stitches and rows (knitting-chart convention). */
-export const MAJOR_GRID_EVERY = 5;
+/** Bold counting lines every N stitches/rows for knitting charts. */
+export const KNITTING_MAJOR_GRID_EVERY = 5;
 
-/** Short footer on exports so knitters know where to start. */
-export const CHART_READING_HINT =
+/** Bold counting lines every N stitches/rows for cross-stitch charts. */
+export const CROSS_STITCH_MAJOR_GRID_EVERY = 10;
+
+/** @deprecated Prefer {@link majorGridEvery}; kept as the knitting default. */
+export const MAJOR_GRID_EVERY = KNITTING_MAJOR_GRID_EVERY;
+
+/** Short footer on Knit-ready exports so knitters know where to start. */
+export const KNITTING_READING_HINT =
   "Start bottom-right. In the round: read right to left, bottom to top.";
+
+/** Short PDF hint on Stitch-ready exports; omitted from PNG chrome. */
+export const CROSS_STITCH_READING_HINT =
+  "Start from the center. Count from the top-left; each square is one full cross. On even counts the center falls between stitches.";
+
+/** @deprecated Prefer {@link chartReadingHint}; knitting default. */
+export const CHART_READING_HINT = KNITTING_READING_HINT;
+
+/** Fixed footer on Stitch-ready PDF packaging only. */
+export const STITCH_READY_PDF_FOOTER =
+  "Yarnlane · pattern stays on this device";
 
 export type ColorKeyRow = {
   symbol: string;
@@ -43,31 +61,105 @@ export function chartCellHex(
   return chart.palette[cell]?.hex ?? "#cbd0da";
 }
 
-/**
- * Traditional knitting: stitch 1 is the rightmost column. `colZeroBased` is
- * left-to-right storage order (image / array index).
- */
-export function stitchNumberAtColumn(colZeroBased: number, width: number): number {
-  return width - colZeroBased;
+export function majorGridEvery(craft: CraftType = DEFAULT_CRAFT_TYPE): number {
+  return craft === "cross-stitch"
+    ? CROSS_STITCH_MAJOR_GRID_EVERY
+    : KNITTING_MAJOR_GRID_EVERY;
+}
+
+export function chartReadingHint(craft: CraftType = DEFAULT_CRAFT_TYPE): string {
+  return craft === "cross-stitch"
+    ? CROSS_STITCH_READING_HINT
+    : KNITTING_READING_HINT;
+}
+
+export function pdfSubtitle(
+  craft: CraftType,
+  width: number,
+  height: number,
+): string {
+  if (craft === "cross-stitch") {
+    return `Cross-stitch · ${width} × ${height}`;
+  }
+  return `${width} × ${height} stitches`;
+}
+
+export function pdfLegendTitle(craft: CraftType = DEFAULT_CRAFT_TYPE): string {
+  return craft === "cross-stitch" ? "Floss chart" : "Color key";
 }
 
 /**
- * Traditional knitting: row 1 is the bottom row. `rowZeroBased` is top-to-bottom
- * storage order (image / array index).
+ * Offset in cell units from the top-left grid corner to the geometric center
+ * guideline. Even totals land on a grid line between stitches; odd totals bisect
+ * the middle cell.
  */
-export function rowNumberAtRow(rowZeroBased: number, height: number): number {
-  return height - rowZeroBased;
+export function centerLineOffsetCells(total: number): number {
+  return total / 2;
 }
 
 /**
- * Grid line major weight when measured from the knitting origin (right edge for
- * vertical lines, bottom edge for horizontal). `cellsFromOrigin` is 0 on that
- * origin edge and `total` on the far edge; both edges and every
- * {@link MAJOR_GRID_EVERY} cells are major.
+ * Stitch number for a column. Knitting: stitch 1 is the rightmost column.
+ * Cross-stitch: stitch 1 is the leftmost column.
  */
-export function isMajorGridLine(cellsFromOrigin: number, total: number): boolean {
+export function stitchNumberAtColumn(
+  colZeroBased: number,
+  width: number,
+  craft: CraftType = DEFAULT_CRAFT_TYPE,
+): number {
+  return craft === "cross-stitch" ? colZeroBased + 1 : width - colZeroBased;
+}
+
+/**
+ * Row number for a row. Knitting: row 1 is the bottom row. Cross-stitch: row 1
+ * is the top row.
+ */
+export function rowNumberAtRow(
+  rowZeroBased: number,
+  height: number,
+  craft: CraftType = DEFAULT_CRAFT_TYPE,
+): number {
+  return craft === "cross-stitch" ? rowZeroBased + 1 : height - rowZeroBased;
+}
+
+/**
+ * Grid line major weight measured from the craft origin. `cellsFromOrigin` is 0
+ * on that origin edge and `total` on the far edge; both edges and every
+ * craft major interval are major.
+ *
+ * Knitting origin: right edge (vertical lines), bottom edge (horizontal).
+ * Cross-stitch origin: left edge (vertical), top edge (horizontal).
+ */
+export function isMajorGridLine(
+  cellsFromOrigin: number,
+  total: number,
+  craft: CraftType = DEFAULT_CRAFT_TYPE,
+): boolean {
   if (cellsFromOrigin === 0 || cellsFromOrigin === total) return true;
-  return cellsFromOrigin % MAJOR_GRID_EVERY === 0;
+  return cellsFromOrigin % majorGridEvery(craft) === 0;
+}
+
+/**
+ * Cells-from-origin for a vertical grid line at column index `i` (0 = left edge
+ * of the chart, `cols` = right edge).
+ */
+export function verticalLineCellsFromOrigin(
+  i: number,
+  cols: number,
+  craft: CraftType = DEFAULT_CRAFT_TYPE,
+): number {
+  return craft === "cross-stitch" ? i : cols - i;
+}
+
+/**
+ * Cells-from-origin for a horizontal grid line at row index `j` (0 = top edge
+ * of the chart, `rows` = bottom edge).
+ */
+export function horizontalLineCellsFromOrigin(
+  j: number,
+  rows: number,
+  craft: CraftType = DEFAULT_CRAFT_TYPE,
+): number {
+  return craft === "cross-stitch" ? j : rows - j;
 }
 
 export type PngLayout = {
@@ -89,10 +181,13 @@ export type PngLayout = {
 function measure(
   chart: ColorworkChart,
   cellSize: number,
+  craft: CraftType,
 ): Omit<PngLayout, "requestedCellSize" | "clamped"> {
   const gutter = Math.round(cellSize * 1.6);
   const padding = Math.round(cellSize * 0.6);
-  const hintHeight = Math.round(cellSize * 1.15);
+  // Stitch-ready PNG omits reading-hint chrome; Knit-ready keeps it.
+  const hintHeight =
+    craft === "cross-stitch" ? 0 : Math.round(cellSize * 1.15);
   const keyTitleHeight = Math.round(cellSize * 1.6);
   const keyRowHeight = Math.round(cellSize * 1.3);
   const keyHeight =
@@ -125,9 +220,10 @@ function measure(
 export function computePngLayout(
   chart: ColorworkChart,
   requestedCellSize: number = DEFAULT_CELL_PX,
+  craft: CraftType = DEFAULT_CRAFT_TYPE,
 ): PngLayout {
   let cellSize = Math.max(1, Math.round(requestedCellSize));
-  let dims = measure(chart, cellSize);
+  let dims = measure(chart, cellSize, craft);
   let clamped = false;
 
   if (dims.width > MAX_PNG_SIDE || dims.height > MAX_PNG_SIDE) {
@@ -137,13 +233,13 @@ export function computePngLayout(
       MAX_PNG_SIDE / dims.height,
     );
     cellSize = Math.max(1, Math.floor(cellSize * factor));
-    dims = measure(chart, cellSize);
+    dims = measure(chart, cellSize, craft);
     while (
       (dims.width > MAX_PNG_SIDE || dims.height > MAX_PNG_SIDE) &&
       cellSize > 1
     ) {
       cellSize -= 1;
-      dims = measure(chart, cellSize);
+      dims = measure(chart, cellSize, craft);
     }
   }
 
@@ -167,9 +263,17 @@ export function hexToRgb01(hex: string): { r: number; g: number; b: number } {
   };
 }
 
-/** Label coordinates on the edges and every 5th line to stay readable. */
-export function shouldLabel(oneBased: number, total: number): boolean {
-  return oneBased === 1 || oneBased === total || oneBased % 5 === 0;
+/** Label coordinates on the edges and every major interval to stay readable. */
+export function shouldLabel(
+  oneBased: number,
+  total: number,
+  craft: CraftType = DEFAULT_CRAFT_TYPE,
+): boolean {
+  return (
+    oneBased === 1 ||
+    oneBased === total ||
+    oneBased % majorGridEvery(craft) === 0
+  );
 }
 
 function symbolInkForCanvas(hex: string): string {
@@ -185,17 +289,20 @@ function drawExportGrid(
   cellSize: number,
   cols: number,
   rows: number,
+  craft: CraftType,
 ): void {
   const chartRight = gridLeft + cols * cellSize;
   const chartBottom = gridTop + rows * cellSize;
   const minor = "rgba(0,0,0,0.16)";
   const major = "rgba(0,0,0,0.55)";
+  const center = "rgba(180,40,40,0.75)";
   const minorWidth = Math.max(1, Math.round(cellSize * 0.04));
   const majorWidth = Math.max(2, Math.round(cellSize * 0.09));
+  const centerWidth = Math.max(2, Math.round(cellSize * 0.07));
 
   for (let i = 0; i <= cols; i += 1) {
-    const fromRight = cols - i;
-    const majorLine = isMajorGridLine(fromRight, cols);
+    const fromOrigin = verticalLineCellsFromOrigin(i, cols, craft);
+    const majorLine = isMajorGridLine(fromOrigin, cols, craft);
     const x = gridLeft + i * cellSize + (majorLine ? 0 : 0.5);
     ctx.beginPath();
     ctx.moveTo(x, gridTop);
@@ -206,14 +313,31 @@ function drawExportGrid(
   }
 
   for (let j = 0; j <= rows; j += 1) {
-    const fromBottom = rows - j;
-    const majorLine = isMajorGridLine(fromBottom, rows);
+    const fromOrigin = horizontalLineCellsFromOrigin(j, rows, craft);
+    const majorLine = isMajorGridLine(fromOrigin, rows, craft);
     const y = gridTop + j * cellSize + (majorLine ? 0 : 0.5);
     ctx.beginPath();
     ctx.moveTo(gridLeft, y);
     ctx.lineTo(chartRight, y);
     ctx.strokeStyle = majorLine ? major : minor;
     ctx.lineWidth = majorLine ? majorWidth : minorWidth;
+    ctx.stroke();
+  }
+
+  if (craft === "cross-stitch") {
+    const cx = gridLeft + centerLineOffsetCells(cols) * cellSize;
+    const cy = gridTop + centerLineOffsetCells(rows) * cellSize;
+    ctx.beginPath();
+    ctx.moveTo(cx, gridTop);
+    ctx.lineTo(cx, chartBottom);
+    ctx.strokeStyle = center;
+    ctx.lineWidth = centerWidth;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(gridLeft, cy);
+    ctx.lineTo(chartRight, cy);
+    ctx.strokeStyle = center;
+    ctx.lineWidth = centerWidth;
     ctx.stroke();
   }
 }
@@ -227,9 +351,10 @@ export function drawChartToCanvas(
   chart: ColorworkChart,
   layout: PngLayout,
   title: string,
-  options: { showSymbols?: boolean } = {},
+  options: { showSymbols?: boolean; craftType?: CraftType } = {},
 ): void {
   const showSymbols = options.showSymbols ?? true;
+  const craft = options.craftType ?? DEFAULT_CRAFT_TYPE;
   const { cellSize, gutter, padding } = layout;
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, layout.width, layout.height);
@@ -241,11 +366,10 @@ export function drawChartToCanvas(
   ctx.textBaseline = "middle";
   ctx.font = `${Math.round(cellSize * 0.5)}px monospace`;
 
-  // Coordinates — traditional: stitch 1 at right, row 1 at bottom.
   ctx.fillStyle = "#71767f";
   for (let col = 0; col < chart.width; col += 1) {
-    const stitch = stitchNumberAtColumn(col, chart.width);
-    if (!shouldLabel(stitch, chart.width)) continue;
+    const stitch = stitchNumberAtColumn(col, chart.width, craft);
+    if (!shouldLabel(stitch, chart.width, craft)) continue;
     ctx.fillText(
       String(stitch),
       gridLeft + col * cellSize + cellSize / 2,
@@ -253,8 +377,8 @@ export function drawChartToCanvas(
     );
   }
   for (let row = 0; row < chart.height; row += 1) {
-    const rowNo = rowNumberAtRow(row, chart.height);
-    if (!shouldLabel(rowNo, chart.height)) continue;
+    const rowNo = rowNumberAtRow(row, chart.height, craft);
+    if (!shouldLabel(rowNo, chart.height, craft)) continue;
     ctx.fillText(
       String(rowNo),
       gridLeft - cellSize * 0.8,
@@ -262,7 +386,6 @@ export function drawChartToCanvas(
     );
   }
 
-  // Cells + symbols (grid drawn once afterward for major/minor weights).
   for (let row = 0; row < chart.height; row += 1) {
     for (let col = 0; col < chart.width; col += 1) {
       const entry = chart.palette[chart.cells[row * chart.width + col]];
@@ -276,15 +399,26 @@ export function drawChartToCanvas(
       }
     }
   }
-  drawExportGrid(ctx, gridLeft, gridTop, cellSize, chart.width, chart.height);
+  drawExportGrid(
+    ctx,
+    gridLeft,
+    gridTop,
+    cellSize,
+    chart.width,
+    chart.height,
+    craft,
+  );
 
-  // Reading hint, then color key.
   let keyY = gridTop + chart.height * cellSize + Math.round(cellSize * 0.35);
-  ctx.fillStyle = "#5c6370";
-  ctx.textAlign = "left";
-  ctx.font = `${Math.round(cellSize * 0.38)}px sans-serif`;
-  ctx.fillText(CHART_READING_HINT, padding, keyY);
-  keyY = gridTop + chart.height * cellSize + layout.hintHeight;
+  if (craft !== "cross-stitch") {
+    ctx.fillStyle = "#5c6370";
+    ctx.textAlign = "left";
+    ctx.font = `${Math.round(cellSize * 0.38)}px sans-serif`;
+    ctx.fillText(chartReadingHint(craft), padding, keyY);
+    keyY = gridTop + chart.height * cellSize + layout.hintHeight;
+  } else {
+    ctx.textAlign = "left";
+  }
 
   ctx.fillStyle = "#1a1d23";
   ctx.font = `bold ${Math.round(cellSize * 0.6)}px sans-serif`;
@@ -318,9 +452,19 @@ export type PngExport = { blob: Blob; layout: PngLayout };
 /** Render the chart to a PNG Blob from canonical data (not a UI screenshot). */
 export async function renderChartPngBlob(
   chart: ColorworkChart,
-  options: { cellSize?: number; title?: string; showSymbols?: boolean } = {},
+  options: {
+    cellSize?: number;
+    title?: string;
+    showSymbols?: boolean;
+    craftType?: CraftType;
+  } = {},
 ): Promise<PngExport> {
-  const layout = computePngLayout(chart, options.cellSize ?? DEFAULT_CELL_PX);
+  const craft = options.craftType ?? DEFAULT_CRAFT_TYPE;
+  const layout = computePngLayout(
+    chart,
+    options.cellSize ?? DEFAULT_CELL_PX,
+    craft,
+  );
   const canvas = document.createElement("canvas");
   canvas.width = layout.width;
   canvas.height = layout.height;
@@ -330,6 +474,7 @@ export async function renderChartPngBlob(
   }
   drawChartToCanvas(ctx, chart, layout, options.title?.trim() || "Color key", {
     showSymbols: options.showSymbols,
+    craftType: craft,
   });
 
   const blob = await new Promise<Blob | null>((resolve) =>
